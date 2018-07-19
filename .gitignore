@@ -1,0 +1,12 @@
+*.pyc
+__pycache__
+.coverage
+dist/
+.python-version
+.tox/
+env/
+db.sqlite3
+
+.DS_Store
+
+node_modules
