@@ -1,0 +1,73 @@
+from widgets.models import Widget
+from purchases.models import Purchase
+from customers.models import Customer
+from django.conf.urls import url, include
+from rest_framework import serializers, viewsets
+from rest_framework.routers import DefaultRouter, SimpleRouter
+from rest_framework.routers import DynamicRoute, Route
+
+
+class WidgetSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Widget
+        fields = ('name', 'color', 'size', 'shape', 'cost')
+
+class WidgetViewSet(viewsets.ModelViewSet):
+    queryset = Widget.objects.all()
+    serializer_class = WidgetSerializer
+
+class CustomerSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Customer
+        fields = ('name', 'state', 'gender', 'age')
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+
+class PurchaseSerializer(serializers.ModelSerializer):
+    customer = CustomerSerializer(read_only=True)
+    items = WidgetSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Purchase
+        fields = ('sale_date', 'sale_price', 'profit', 'customer', 'items')
+
+class PurchaseViewSet(viewsets.ModelViewSet):
+    queryset = Purchase.objects.all()
+    serializer_class = PurchaseSerializer
+
+class PublicReadOnlyRouter(SimpleRouter):
+    routes = [
+        Route(
+            url=r'^{prefix}$',
+            mapping={'get': 'list'},
+            name='{basename}-list',
+            detail=False,
+            initkwargs={'suffix': 'List'}
+        ),
+        Route(
+            url=r'^{prefix}/{lookup}$',
+            mapping={'get': 'retrieve'},
+            name='{basename}-detail',
+            detail=True,
+            initkwargs={'suffix': 'Detail'}
+        ),
+        DynamicRoute(
+            url=r'^{prefix}/{lookup}/{url_path}$',
+            name='{basename}-{url_name}',
+            detail=True,
+            initkwargs={}
+        )
+    ]
+
+router = PublicReadOnlyRouter()
+router.register(r'widgets', WidgetViewSet)
+router.register(r'purchases', PurchaseViewSet)
+router.register(r'customers', CustomerViewSet)
+
+urlpatterns = [
+    url(r'^', include(router.urls)),
+]

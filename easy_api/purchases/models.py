@@ -12,6 +12,9 @@ class Purchase(models.Model):
     profit = models.FloatField(default=0, blank=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
 
+    def get_customer(self):
+        return Customer.objects.get(purchase=self)
+
     def get_items(self):
         return self.items.all()
 

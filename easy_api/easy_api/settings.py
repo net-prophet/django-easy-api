@@ -40,7 +40,22 @@ INSTALLED_APPS = [
     'widgets',
     'purchases',
     'customers',
+    'rest_framework',
+    'EasyAPI',
 ]
+
+# Register the apis you'd like for your project
+
+EASYAPIS = [
+    'public',
+    'private'
+]
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
+    ]
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
