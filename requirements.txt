@@ -1,5 +1,5 @@
 tox
 markdown
 factory_boy
-drf-nested-routers
 djangorestframework
+django-debug-toolbar

@@ -1,15 +1,11 @@
 from django.apps import apps
-from rest_framework import serializers, viewsets
+from rest_framework import viewsets
 from rest_framework.routers import DynamicRoute, Route, DefaultRouter
 
-
-class PublicSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = None
-        fields = '__all__'
+from EasyAPI.EasySerializer import EasySerializable
 
 
-class PublicViewSet(viewsets.ModelViewSet):
+class EasyViewSet(viewsets.ModelViewSet):
     @property
     def model(self):
         name, label = self.basename.split()
@@ -20,11 +16,11 @@ class PublicViewSet(viewsets.ModelViewSet):
         return model.objects.all()
 
     def get_serializer_class(self):
-        PublicSerializer.Meta.model = self.model
-        return PublicSerializer
+        e = EasySerializable
+        return e.get_base_serializer_class(self.model())
 
 
-class PublicReadOnlyRouter(DefaultRouter):
+class EasyRouter(DefaultRouter):
     routes = [
         Route(
             url=r'^{prefix}/$',
@@ -48,13 +44,13 @@ class PublicReadOnlyRouter(DefaultRouter):
         )
     ]
 
-def debug_router(self):
-    router = PublicReadOnlyRouter()
-    for model in apps.get_models():
+def easy_router(self, fields):
+    router = EasyRouter()
+    for model, api in self._registry.items():
         try:
             name = model._meta.model_name
             label = model._meta.app_label
-            router.register(r'%s' % label, PublicViewSet, '%s %s' % (name, label))
+            router.register(r'%s' % label, EasyViewSet, '%s %s' % (name, label))
         except AttributeError:
             pass
 

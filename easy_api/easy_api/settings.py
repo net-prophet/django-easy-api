@@ -47,8 +47,9 @@ INSTALLED_APPS = [
 # Register the apis you'd like for your project
 
 EASYAPIS = [
-    'public',
-    'private'
+    'publicapi',
+    'privateapi',
+    'debugapi'
 ]
 
 REST_FRAMEWORK = {
