@@ -4,7 +4,6 @@ from django.db import models
 from rest_framework import status
 from collections import OrderedDict
 from django.http import HttpResponse
-from django.shortcuts import redirect
 from rest_framework.response import Response
 from .EasySerializer import EasySerializable, classproperty
 
@@ -36,8 +35,6 @@ class EasyUIMixin(EasySerializable):
                         rendered_views[v] = obj.get_dataview(v, request)
                 if 'views' in views:
                     rendered_views['views'] = config
-                if 'actions' in views:
-                    rendered_views['actions'] = obj.get_actions_config()
                 return rendered_views
 
             class Meta:
@@ -85,7 +82,7 @@ class EasyUIMixin(EasySerializable):
 
     # Views related stuff
     @classmethod
-    def get_model_views(cls):
+    def get_model_views(cls, model):
         from rest_framework.decorators import list_route, detail_route
         from rest_framework import viewsets, filters
 
@@ -190,24 +187,6 @@ class EasyUIMixin(EasySerializable):
                     request,
                     style='react'
                 )
-
-            @detail_route()
-            def run_action(self, request, *args, **kwargs):
-                obj = self.get_queryset().g404(**kwargs)
-                result = obj.run_action(request.GET.get('action', ''),
-                                        request.GET.get('value', ''),
-                                        request)
-                if not isinstance(result, dict):
-                    result = {'success': bool(result), 'result': result}
-                if result.get('updated', False) and 'object' not in result:
-                    result['object'] = obj.serialize().data
-                    if not result.get('class', ''):
-                        succ = result['success'] and 'success' or 'warning'
-                        result['class'] = succ
-                return Response(result)
-                if result.get('redirect', ''):
-                    return redirect(result['redirect'])
-                return redirect(obj)
 
             @detail_route()
             def dataview(self, request, *args, **kwargs):
@@ -375,20 +354,7 @@ class EasyUIMixin(EasySerializable):
         cls.__filters__[name] = conf
         return cls
 
-    # UI - Datagrid Columns
-    @classmethod
-    def datagrid_column_defaults(cls):
-        return cls.__get_inheritable_property__(
-            '__datagrid_column_defaults__',
-            []
-        )
-
-    @classproperty
-    def datagrid_column_config(cls):
-        return cls.__get_inheritable_property__(
-            'datagrid_columns',
-            OrderedDict()
-        )
+    # UI
 
     @classmethod
     def field_groups(cls):
@@ -421,63 +387,6 @@ class EasyUIMixin(EasySerializable):
         return
 
     @classmethod
-    def datagrid_columns(cls, request, view):
-        ordering_fields = cls.get_ordering_fields()
-        columns = cls.datagrid_column_config
-        # groups = cls.field_group_info(request, view)
-        header_info = cls.table_header_info()
-        if callable(columns):
-            columns = columns(request, view)
-
-        for f in cls.get_serializer_fields():
-            if f not in columns:
-                columns[f] = True
-        request_cols = {}
-
-        for key, col in columns.items():
-            if callable(col):
-                col = col(request, view)
-            if isinstance(col, bool):
-                if not col:
-                    columns.pop(key, None)
-                    return cls
-                col = {}
-            if 'key' not in col:
-                col['key'] = key
-            try:
-                field = cls._meta.get_field(col['key'])
-            except:  # noqa: E722
-                field = None
-            if 'name' not in col:
-                if 'title' in col:
-                    col['name'] = col['title']
-                else:
-                    col['name'] = getattr(field, 'verbose_name',
-                                          key).replace('_', ' ').capitalize()
-            if field:
-                col['field'] = key
-                if key in ordering_fields:
-                    col['sort'] = key
-
-            if 'type' not in col:
-                if(isinstance(field, models.DateTimeField)):
-                    col['type'] = 'datetime'
-
-            if header_info:
-                if key in header_info:
-                    col['name'] = header_info[key]['title']
-                    col['tooltip'] = header_info[key]['tooltip']
-
-            # For someday later: add a reverse lookup of which group
-            # field is in.
-            # I'm not sure the function for this in new abstract style
-            # if not 'group' in col:
-            # for g_name, group in groups.items():
-            # if key in group.get('fields',[]): col['group'] = g_name
-            request_cols[key] = col
-        return request_cols
-
-    @classmethod
     def register_datagrid_column(cls, field, cfg=True):
         columns = cls.datagrid_column_config
         if isinstance(cfg, bool):
@@ -496,43 +405,10 @@ class EasyUIMixin(EasySerializable):
     def ui_parent(cls):
         return cls.relations.get('ui_parent', {})
 
-    # Actions and Info Views
-    @classproperty
-    def actions(cls):
-        return cls.__get_inheritable_property__('actions')
-
+    # Info Views
     @classproperty
     def dataviews(cls):
         return cls.__get_inheritable_property__('dataviews')
-
-    def get_running_actions(self, action=None):
-        from easy.jobs.models import Job
-        qs = Job.a().for_object(self).running()
-        if action:
-            qs = qs.f(method='run_%s' % action)
-        return qs
-
-    def get_running_action(self, action):
-        running = self.get_running_actions(action).first()
-        return running and running.serialized() or False
-
-    def get_actions_config(self):
-        def action_config(a, c):
-            cfg = {'title': c['title'],
-                   'style': c.get('style', 'button'),
-                   'class': c.get('class', 'info'),
-                   'enabled': 'enabled' in c and c['enabled'](self) or True,
-                   }
-            if 'config' in c:
-                cfg['config'] = c['config'](self) or {}
-            if c.get('icon'):
-                cfg['icon'] = c['icon']
-            if c.get('async'):
-                cfg['async'] = c['async']
-            if c.get('async'):
-                cfg['running'] = self.get_running_action(a)
-            return cfg
-        return {a: action_config(a, c) for a, c in self.actions.items()}
 
     def get_dataviews_config(self):
         views = {}
@@ -544,60 +420,6 @@ class EasyUIMixin(EasySerializable):
                 else:
                     views[v]['config'] = c['config']
         return views
-
-    def run_action(self, action, value=None, request=None):
-        from easy.notifications.models import Notification
-        from easy.jobs.models import Job
-        result = None
-        cfg = self.get_actions_config()
-        if action not in cfg:
-            return None
-        info = cfg[action]
-        for n in ['run_%s', ]:
-            if callable(getattr(self, n % action, None)):
-                if info.get('async', False):
-                    from easy.jobs.tasks import run_job
-                    task, result = run_job(self, n % action, value=value)
-                else:
-                    result = getattr(self, n % action)(value, request)
-                break
-
-        title = '%s on %s %s' % (info['title'], self.verbose_name, self.title)
-        v_msg = value and ': %s' % value or ''
-
-        if isinstance(result, Job):
-            n_msg = 'Started job %s%s' % (title, v_msg)
-            Notification.deliver(self.user, n_msg.title(), 'running')
-            return {'running': result.serialized()}
-
-        if not result or isinstance(result, bool):
-            result = {'success': bool(result)}
-
-        success = result['success']
-        n_error = (not success and '[FAILED] ') or ''
-        n_msg = '%s%s%s' % (n_error, title, v_msg)
-        n_icon = ''
-        if not success:
-            n_icon = 'exclamation'
-        else:
-            if info['style'] == 'dropdown' and 'config' in info:
-                n_icon = info['config']['options'][value].get('icon', '')
-            n_icon = n_icon or info.get('icon', '') or 'check'
-
-        if(action == 'archive' or action == 'unarchive'):
-            return result
-
-        if not (self.verbose_name == 'notification'):
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            user = None
-            if isinstance(getattr(self, 'user'), User):
-                user = self.user
-            if isinstance(self, User):
-                user = self.leader or self
-            if user:
-                Notification.deliver(user, n_msg.title(), n_icon)
-        return result
 
     def get_dataview(self, view, request=None):
         result = None
@@ -613,22 +435,6 @@ class EasyUIMixin(EasySerializable):
 
     def get_dataviews(self, views, request=None):
         return {v: self.get_dataview(v, request) for v in views}
-
-    def dataview_actions(self, request):
-        return self.get_actions_config()
-
-    @classmethod
-    def register_action(cls, name, conf):
-        if name in cls.actions:
-            name = '%s_%s' % (cls.class_name().lower(), name)
-        if callable(conf):
-            conf = {'options': conf}
-        if 'name' not in conf:
-            conf['name'] = name
-        if 'title' not in conf:
-            conf['title'] = name.capitalize()
-        cls.__actions__[name] = conf
-        return cls
 
     @classmethod
     def register_dataview(cls, name, conf=None):

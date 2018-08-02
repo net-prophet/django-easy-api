@@ -4,14 +4,13 @@ from .models import Widget
 
 class PublicWidgetAPI(ModelAPI):
     model = Widget
-    api_fields = ('name', 'color', 'size', 'shape', 'cost')
+    api_fields = ('name', 'color')
     crud = ['r']
 
 
 class PrivateWidgetAPI(ModelAPI):
     model = Widget
-    api_fields = ('name', 'color')
-    permissions = 'Check Logged In'  # just a placeholder value etc
+    api_fields = ('name', 'color', 'size', 'shape', 'cost')
 
 
 publicapi.register(Widget, PublicWidgetAPI)

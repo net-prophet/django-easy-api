@@ -6,6 +6,7 @@ from django.conf import settings
 from weakref import WeakSet
 
 from EasyAPI.router import easy_router
+from rest_framework import permissions
 
 all_apis = WeakSet()
 
@@ -14,12 +15,14 @@ class AlreadyRegistered(Exception):
     pass
 
 
-class EasyAPI:
+class EasyAPI(object):
     _registry = {}
 
     def __init__(self, name, *args, **kwargs):
         self._registry = {}
         self.name = name
+        if 'permission_classes' in kwargs:
+            self.permission_classes = kwargs['permission_classes']
         all_apis.add(self)
         self._registry.update(self._registry)
 
@@ -55,7 +58,7 @@ class EasyAPI:
             errors.append(missing_app)
         return errors
 
-    def register(cls, model, api_class=None, **options):
+    def register(cls, model, api_class=None, permissions=None, **options):
 
         try:
             cls.verify_api(cls.name)
@@ -75,7 +78,7 @@ class EasyAPI:
                 )
             if m in cls._registry:
                 raise AlreadyRegistered(
-                    'The model %s is already registered' % m.__name__
+                    'The model %s is already registered.' % m.__name__
                 )
             cls._registry[m] = api_class
 
@@ -84,13 +87,18 @@ class EasyAPI:
         return self.get_urls(), self.name, self.name
 
     def get_urls(self):
+        from EasyAPI.common_routers import common_router
+        from rest_framework import permissions
 
         if self.name == 'debugapi':
-            from EasyAPI.public import debug_router
-            return debug_router(self)
+            permissions = (permissions.AllowAny,)
+            return common_router(self, permissions)
 
-        router = easy_router(self)
-        return router
+        if self.name == 'adminapi':
+            permissions = (permissions.IsAdminUser,)
+            return common_router(self, permissions)
+
+        return easy_router(self)
 
     @classmethod
     def verify_api(cls, name):
@@ -98,9 +106,12 @@ class EasyAPI:
             raise Exception('This is not a registered EasyAPI!')
 
 
-debugapi = EasyAPI('debugapi')
 publicapi = EasyAPI('publicapi')
-privateapi = EasyAPI('privateapi')
+
+privateapi = EasyAPI('privateapi',
+                     permission_classes=(permissions.IsAuthenticated,))
+debugapi = EasyAPI('debugapi')
+adminapi = EasyAPI('adminapi')
 
 
 class ModelAPI(models.Model):

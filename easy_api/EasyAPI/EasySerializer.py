@@ -33,7 +33,6 @@ class EasySerializable:
 
             class Meta:
                 model = Model
-                fields = '__all__'
 
         return EasyBaseSerializer
 
