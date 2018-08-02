@@ -9,28 +9,19 @@ from EasyAPI.router import easy_router
 
 all_apis = WeakSet()
 
+
 class AlreadyRegistered(Exception):
     pass
 
+
 class EasyAPI:
     _registry = {}
-
-    def holding(self):
-        for app_config in apps.get_app_configs():
-            try:
-                import copy
-                from importlib import import_module
-                before_import_registry = copy.copy(self._registry)
-                import_module('%s.%s' % (app_config.name, 'api'))
-            except Exception:
-                self._registry = before_import_registry
 
     def __init__(self, name, *args, **kwargs):
         self._registry = {}
         self.name = name
         all_apis.add(self)
         self._registry.update(self._registry)
-        super(EasyAPI, self).__init__(*args, **kwargs)
 
     def check(self, app_configs):
         if app_configs is None:
@@ -107,7 +98,6 @@ class EasyAPI:
             raise Exception('This is not a registered EasyAPI!')
 
 
-
 debugapi = EasyAPI('debugapi')
 publicapi = EasyAPI('publicapi')
 privateapi = EasyAPI('privateapi')
@@ -115,6 +105,7 @@ privateapi = EasyAPI('privateapi')
 
 class ModelAPI(models.Model):
     crud = ['c', 'r', 'u', 'd']
+
     class Meta:
         app_label = 'EasyAPI'
 
@@ -122,4 +113,3 @@ class ModelAPI(models.Model):
         self.model = model
         self.api_fields = api_fields
         super(ModelAPI, self).__init__()
-

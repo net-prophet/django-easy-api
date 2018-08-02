@@ -48,17 +48,17 @@ class PublicReadOnlyRouter(DefaultRouter):
         )
     ]
 
+
 def debug_router(self):
     router = PublicReadOnlyRouter()
     for model in apps.get_models():
         try:
             name = model._meta.model_name
             label = model._meta.app_label
-            router.register(r'%s' % label, PublicViewSet, '%s %s' % (name, label))
+            router.register(r'%s' % label, PublicViewSet,
+                            '%s %s' % (name, label))
         except AttributeError:
             pass
 
     urlpatterns = router.urls
     return urlpatterns
-
-

@@ -50,9 +50,8 @@ def easy_router(self):
     for model, api in self._registry.items():
         name = model._meta.model_name
         label = model._meta.app_label
-        router.register(r'%s' % label, EasyViewSet, '%s %s' % (name, label))
+        router.register(r'%s' % label, EasyViewSet,
+                        '%s %s' % (name, label))
 
     urlpatterns = router.urls
     return urlpatterns
-
-
