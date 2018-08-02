@@ -6,7 +6,7 @@ from collections import OrderedDict
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from rest_framework.response import Response
-from .EasySerializable import EasySerializable, classproperty
+from .EasySerializer import EasySerializable, classproperty
 
 p = inflect.engine()
 

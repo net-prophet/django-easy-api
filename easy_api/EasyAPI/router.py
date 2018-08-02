@@ -44,15 +44,13 @@ class EasyRouter(DefaultRouter):
         )
     ]
 
-def easy_router(self, fields):
+
+def easy_router(self):
     router = EasyRouter()
     for model, api in self._registry.items():
-        try:
-            name = model._meta.model_name
-            label = model._meta.app_label
-            router.register(r'%s' % label, EasyViewSet, '%s %s' % (name, label))
-        except AttributeError:
-            pass
+        name = model._meta.model_name
+        label = model._meta.app_label
+        router.register(r'%s' % label, EasyViewSet, '%s %s' % (name, label))
 
     urlpatterns = router.urls
     return urlpatterns

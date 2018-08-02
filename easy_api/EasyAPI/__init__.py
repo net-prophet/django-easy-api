@@ -1,8 +1,6 @@
 __all__ = ['autodiscover']
 
-from django.utils.module_loading import autodiscover_modules
-from EasyAPI.api import EasyAPI
 def autodiscover():
-    autodiscover_modules('EasyAPI', register_to=EasyAPI)
-
+    from django.utils.module_loading import autodiscover_modules
+    autodiscover_modules('api')
 default_app_config = 'EasyAPI.apps.EasyAPIConfig'

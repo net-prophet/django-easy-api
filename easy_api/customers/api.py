@@ -1,6 +1,5 @@
-from EasyAPI.api import publicapi, privateapi
 from .models import Customer
-from EasyAPI.models import ModelAPI
+from EasyAPI.models import ModelAPI, publicapi, privateapi
 
 
 class PublicCustomerAPI(ModelAPI):

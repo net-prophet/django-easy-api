@@ -1,6 +1,5 @@
-from EasyAPI.api import publicapi, privateapi
+from EasyAPI.models import ModelAPI, publicapi, privateapi
 from .models import Widget
-from EasyAPI.models import ModelAPI
 
 
 class PublicWidgetAPI(ModelAPI):
