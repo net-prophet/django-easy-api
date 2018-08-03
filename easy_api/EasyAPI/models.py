@@ -18,11 +18,10 @@ class AlreadyRegistered(Exception):
 class EasyAPI(object):
     _registry = {}
 
-    def __init__(self, name, *args, **kwargs):
+    def __init__(self, name, permissions, *args, **kwargs):
         self._registry = {}
         self.name = name
-        if 'permission_classes' in kwargs:
-            self.permission_classes = kwargs['permission_classes']
+        self.permissions = permissions
         all_apis.add(self)
         self._registry.update(self._registry)
 
@@ -88,15 +87,9 @@ class EasyAPI(object):
 
     def get_urls(self):
         from EasyAPI.common_routers import common_router
-        from rest_framework import permissions
 
-        if self.name == 'debugapi':
-            permissions = (permissions.AllowAny,)
-            return common_router(self, permissions)
-
-        if self.name == 'adminapi':
-            permissions = (permissions.IsAdminUser,)
-            return common_router(self, permissions)
+        if self.name == 'debugapi' or self.name == 'adminapi':
+            return common_router(self)
 
         return easy_router(self)
 
@@ -106,12 +99,18 @@ class EasyAPI(object):
             raise Exception('This is not a registered EasyAPI!')
 
 
-publicapi = EasyAPI('publicapi')
-
+publicapi = EasyAPI('publicapi',
+                    (permissions.AllowAny,)
+                    )
 privateapi = EasyAPI('privateapi',
-                     permission_classes=(permissions.IsAuthenticated,))
-debugapi = EasyAPI('debugapi')
-adminapi = EasyAPI('adminapi')
+                     (permissions.IsAuthenticated,)
+                     )
+debugapi = EasyAPI('debugapi',
+                   (permissions.AllowAny,)
+                   )
+adminapi = EasyAPI('adminapi',
+                   (permissions.IsAdminUser,)
+                   )
 
 
 class ModelAPI(models.Model):

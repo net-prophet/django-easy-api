@@ -33,7 +33,7 @@ class CommonViewSet(viewsets.ModelViewSet):
         return CommonSerializer
 
 
-def common_router(self, permissions):
+def common_router(self):
     router = DefaultRouter()
     for model in apps.get_models():
         try:
@@ -41,7 +41,7 @@ def common_router(self, permissions):
             label = model._meta.app_label
             router.register(r'%s' % label,
                             CommonViewSet.permission_classes(
-                                p=permissions
+                                p=self.permissions
                             ),
                             '%s %s' % (name, label))
         except AttributeError:

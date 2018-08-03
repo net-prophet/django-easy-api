@@ -65,12 +65,6 @@ class EasyRouter(DefaultRouter):
 
 
 def easy_router(self):
-    try:
-        permissions = self.permission_classes
-    except AttributeError:
-        from django.conf import settings
-        permissions = settings.REST_FRAMEWORK
-        permissions = permissions['DEFAULT_PERMISSION_CLASSES']
     router = EasyRouter()
     for model, api in self._registry.items():
         name = model._meta.model_name
@@ -79,7 +73,7 @@ def easy_router(self):
                         EasyViewSet.custom_fields(m=model,
                                                   fields=api.api_fields
                                                   ).permission_classes(
-                                                      p=permissions
+                                                      p=self.permissions
                                                   ),
                         '%s %s' % (name, label)
                         )

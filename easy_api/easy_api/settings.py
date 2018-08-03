@@ -44,18 +44,20 @@ INSTALLED_APPS = [
     'EasyAPI',
 ]
 
-# Register the apis you'd like for your project
-
-EASYAPIS = [
-    'publicapi',
-    'privateapi',
-    'debugapi'
-]
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
     ]
+}
+
+# Register the apis you'd like for your project
+
+EASYAPIS = {
+    'publicapi': (REST_FRAMEWORK['DEFAULT_PERMISSION_CLASSES'],),
+    'privateapi': ('permissions.IsAuthenticated',),
+    'debugapi': ('permissions.AllowAny',),
+    'adminapi': ('permissions.IsAdminUser',),
 }
 
 MIDDLEWARE = [
