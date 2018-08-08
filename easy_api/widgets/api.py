@@ -5,7 +5,6 @@ from .models import Widget
 class PublicWidgetAPI(ModelAPI):
     model = Widget
     api_fields = ('name', 'color')
-    crud = ['r']
 
 
 class PrivateWidgetAPI(ModelAPI):

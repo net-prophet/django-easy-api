@@ -65,20 +65,16 @@ class EasySerializable:
 
     @classproperty
     def serializer(cls):
-        print('serializer')
         return cls.get_serializer_class()
 
     def serialize(self, views=None):
-        print('serialize')
         return type(self).serializer(self)
 
     def serialized(self):
-        print('serialized')
         return self.serialize().data
 
     @classmethod
     def get_serializer_fields(cls):
-        print('')
         return cls.field_names + cls.get_serializer_methods()
 
     @classmethod

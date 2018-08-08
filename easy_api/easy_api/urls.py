@@ -3,6 +3,8 @@ from django.conf.urls import url
 from EasyAPI.models import publicapi, privateapi, debugapi, adminapi
 
 
+
+
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^adminapi/', adminapi.urls),
@@ -10,3 +12,5 @@ urlpatterns = [
     url(r'^privateapi/', privateapi.urls),
     url(r'^debugapi/', debugapi.urls)
 ]
+
+

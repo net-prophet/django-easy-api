@@ -1,33 +1,32 @@
 from rest_framework import viewsets
-from rest_framework.routers import DynamicRoute, Route, DefaultRouter
+from rest_framework.routers import DynamicRoute, Route
+from rest_framework.routers import DefaultRouter, APIRootView
 
 from EasyAPI.EasySerializer import EasySerializable
+from EasyAPI.metadata import EasyAPIMetadata
 
 
 class EasyViewSet(viewsets.ModelViewSet):
 
     @classmethod
-    def custom_fields(cls, **kwargs):
-        class CustomFields(cls):
-            fields = kwargs['fields']
-            m = kwargs['m']
-
-        return CustomFields
+    def get_view_name(self):
+        return self.model._meta.app_label
 
     @classmethod
-    def permission_classes(cls, **kwargs):
-        class GetPermissions(cls):
-            permission_classes = kwargs['p']
+    def kwargs(cls, **kwargs):
+        class Kwargs(cls):
+            fields = kwargs['fields']
+            model = kwargs['model']
+            model_perm = kwargs['model_perm']
+            permission_classes = kwargs['api_perm']
+        return Kwargs
 
-        return GetPermissions
-
-    @property
-    def model(self):
-        return self.m
-
-    @property
-    def fields(self):
-        return self.fields
+    @classmethod
+    def crud_permissions(cls, request):
+        crud = []
+        if request.user.is_authenticated:
+            crud = ['create', 'edit', 'details', 'list', 'delete']
+        return crud
 
     def get_queryset(self):
         model = self.model
@@ -38,8 +37,15 @@ class EasyViewSet(viewsets.ModelViewSet):
         e.Meta.fields = self.fields
         return e
 
+class EasyAPIRootView(APIRootView):
+    metadata_class = EasyAPIMetadata
+
+    @classmethod
+    def get_view_name(self):
+        return 'Name'
 
 class EasyRouter(DefaultRouter):
+    APIRootView = EasyAPIRootView
     routes = [
         Route(
             url=r'^{prefix}/$',
@@ -65,18 +71,20 @@ class EasyRouter(DefaultRouter):
 
 
 def easy_router(self):
-    router = EasyRouter()
+    # router = EasyRouter()
+    router = DefaultRouter()
     for model, api in self._registry.items():
         name = model._meta.model_name
         label = model._meta.app_label
         router.register(r'%s' % label,
-                        EasyViewSet.custom_fields(m=model,
-                                                  fields=api.api_fields
-                                                  ).permission_classes(
-                                                      p=self.permissions
-                                                  ),
+                        EasyViewSet.kwargs(model=model,
+                                           fields=api.api_fields,
+                                           model_perm=api.crud_permissions,
+                                           api_perm=self.permissions,
+                                           ),
                         '%s %s' % (name, label)
                         )
+
 
     urlpatterns = router.urls
     return urlpatterns

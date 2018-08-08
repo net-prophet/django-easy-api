@@ -1,5 +1,3 @@
-from django.db import models
-
 from django.apps import apps
 from django.db.models.base import ModelBase
 from django.conf import settings
@@ -41,7 +39,8 @@ class EasyAPI(object):
         return errors
 
     def check_api_app(app_configs, **kwargs):
-        errors = []
+        errors = [] # TODO if ModelAPI isn't models.Model then this fails
+        return errors
         for api in all_apis:
             errors.extend(api.check(app_configs))
         return errors
@@ -57,7 +56,7 @@ class EasyAPI(object):
             errors.append(missing_app)
         return errors
 
-    def register(cls, model, api_class=None, permissions=None, **options):
+    def register(cls, model, api_class, **options):
 
         try:
             cls.verify_api(cls.name)
@@ -67,6 +66,9 @@ class EasyAPI(object):
         api_class = api_class or ModelAPI
         if isinstance(model, ModelBase):
             model = [model]
+
+        perm = cls.create_model_perms(api_class)
+        api_class.crud_permissions = perm
 
         for m in model:
             if m._meta.abstract:
@@ -80,6 +82,17 @@ class EasyAPI(object):
                     'The model %s is already registered.' % m.__name__
                 )
             cls._registry[m] = api_class
+
+    def create_model_perms(cls, api_class):
+        crud = api_class.crud_permissions
+        perm_names = ('list', 'details', 'edit', 'create', 'delete')
+        for k, v in crud.items():
+            if k not in perm_names:
+                error = "'%s' is not a valid permission name. " % k
+                error += 'Valid names are %s' % str(perm_names)
+                raise NameError(error)
+        return {x: cls.permissions if x not in crud else crud[x] for x in perm_names}
+
 
     @property
     def urls(self):
@@ -113,8 +126,15 @@ adminapi = EasyAPI('adminapi',
                    )
 
 
-class ModelAPI(models.Model):
-    crud = ['c', 'r', 'u', 'd']
+class ModelAPI(object):
+
+    crud_permissions = {
+        'list': (permissions.AllowAny,),
+        'details': (permissions.AllowAny,),
+        'edit': (permissions.AllowAny,),
+        'create': (permissions.AllowAny,),
+        'delete': (permissions.AllowAny,)
+    }
 
     class Meta:
         app_label = 'EasyAPI'
