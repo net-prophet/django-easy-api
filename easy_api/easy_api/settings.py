@@ -28,8 +28,9 @@ INSTALLED_APPS = [
     'widgets',
     'purchases',
     'customers',
-    'rest_framework',
     'EasyAPI',
+    'rest_framework',
+    'django_filters',
 ]
 
 

@@ -5,16 +5,31 @@ class EasyAPIMetadata(SimpleMetadata):
 
     def determine_metadata(self, request, view):
         data = super(EasyAPIMetadata, self).determine_metadata(request, view)
-        name = view.model._meta.model_name.capitalize()
-        label = view.model._meta.app_label
 
-        data.update({
-            'name': name,
-            'label': label,
-            'crud_permisisons': view.crud_permissions(request),
-            'model_name': view.model._meta.model_name,
-        })
-        return data
+        def model_metadata(self, request, view, data):
+            name = view.get_view_name().capitalize()
+            label = view.model._meta.app_label
+            data.update({
+                'name': name,
+                'label': label,
+                'crud_permisisons': view.crud_permissions(request),
+                'model_name': view.model._meta.model_name,
+            })
+            return data
+
+        def api_metadata(self, request, view, data):
+            name = view.get_view_name()
+            label = 'hi'
+            data.update({
+                'name': name,
+                'label': label,
+            })
+            return data
+
+        if hasattr(view, 'model'):
+            return model_metadata(self, request, view, data)
+        else:
+            return api_metadata(self, request, view, data)
 
 
 '''
@@ -39,4 +54,3 @@ class EasyAPIMetadata(SimpleMetadata):
             'list_url': reverse('%s-list'%label).replace('/api/','/#/'),
             'ordering_fields': view.model.get_ordering_fields(),
 '''
-

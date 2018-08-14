@@ -3,12 +3,11 @@ from .models import Widget
 
 
 class PublicWidgetAPI(ModelAPI):
-    model = Widget
     api_fields = ('name', 'color')
+    read_only = True
 
 
 class PrivateWidgetAPI(ModelAPI):
-    model = Widget
     api_fields = ('name', 'color', 'size', 'shape', 'cost')
 
 

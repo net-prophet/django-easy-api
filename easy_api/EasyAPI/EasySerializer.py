@@ -10,9 +10,9 @@ class classproperty(object):
         return self.f(owner)
 
 
-class EasySerializable:
+class EasySerializable(object):
     @classmethod
-    def get_base_serializer_class(cls, Model):
+    def get_base_serializer_class(cls):
 
         class EasyBaseSerializer(serializers.ModelSerializer):
             def build_unknown_field(self, field_name, model_class):
@@ -32,7 +32,7 @@ class EasySerializable:
                 )
 
             class Meta:
-                model = Model
+                model = cls
 
         return EasyBaseSerializer
 
@@ -61,7 +61,7 @@ class EasySerializable:
                             )
                 return rendered_views
 
-        return EasySerializer()
+        return EasySerializer
 
     @classproperty
     def serializer(cls):

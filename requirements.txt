@@ -2,4 +2,4 @@ tox
 markdown
 factory_boy
 djangorestframework
-django-debug-toolbar
+django-filter
