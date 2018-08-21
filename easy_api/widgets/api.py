@@ -1,10 +1,9 @@
-from EasyAPI.models import ModelAPI, publicapi, privateapi
 from .models import Widget
+from EasyAPI.models import ModelAPI, publicapi, privateapi
 
 
 class PublicWidgetAPI(ModelAPI):
     api_fields = ('name', 'color')
-    read_only = True
 
 
 class PrivateWidgetAPI(ModelAPI):

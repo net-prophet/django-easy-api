@@ -22,7 +22,7 @@ SUPER = {
 }
 
 
-class PrivateAPITest(APITestCase):
+class PermissionsAPITest(APITestCase):
     def setUp(self):
         # Set up the DB
         for color, size, shape in itertools.product(COLORS, SIZES, SHAPES):
@@ -44,6 +44,7 @@ class PrivateAPITest(APITestCase):
         response = self.client.get('/privateapi/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    # Private widget API has full crud.
     def test_private_get_widget(self):
         widgets = self.client.get('/privateapi/widgets/')
         self.assertEqual(widgets.status_code, status.HTTP_403_FORBIDDEN)
@@ -59,3 +60,17 @@ class PrivateAPITest(APITestCase):
         self.assertEqual(len(widgets.data[rand_index]), len(widget_fields))
         [self.assertIn(field, widgets.data[rand_index])
          for field in widget_fields]
+
+    def test_private_create_widget(self):
+        widgets = self.client.get('/privateapi/widgets/')
+        self.assertEqual(widgets.status_code, status.HTTP_403_FORBIDDEN)
+        self.client.login(username=TEST['username'],
+                          password=TEST['password'])
+        widgets = self.client.get('/privateapi/widgets/')
+        self.assertEqual(widgets.status_code, status.HTTP_200_OK)
+        create = {'name': 'test_widget',
+                  'color': 'blue',
+                  'size': 'large',
+                  'shape': 'circle'}
+        response = self.client.post('/privateapi/widgets/', data=create)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)

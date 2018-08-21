@@ -9,20 +9,26 @@ class EasyAPIMetadata(SimpleMetadata):
         def model_metadata(self, request, view, data):
             name = view.get_view_name().capitalize()
             label = view.model._meta.app_label
+            actions = [(k, v.__dict__['__doc__']) for k, v in
+                       view.actions.items()]
+            filters = [(k, v.__dict__['lookup_expr']) for k, v in
+                       view.filter_class().filters.items()]
             data.update({
                 'name': name,
                 'label': label,
-                'crud_permisisons': view.crud_permissions(request),
+                'description': view.description,
                 'model_name': view.model._meta.model_name,
+                'actions': actions,
+                'filters': filters,
             })
             return data
 
         def api_metadata(self, request, view, data):
             name = view.get_view_name()
-            label = 'hi'
+            perms = [(k, v.__dict__['__doc__']) for k, v in view.perms.items()]
             data.update({
                 'name': name,
-                'label': label,
+                'actions': perms,
             })
             return data
 
@@ -30,27 +36,3 @@ class EasyAPIMetadata(SimpleMetadata):
             return model_metadata(self, request, view, data)
         else:
             return api_metadata(self, request, view, data)
-
-
-'''
-            'permissions': view.model.permissions(request),
-
-            'filters': [(k, v) for k, v in filters.items()],
-        filters = {
-            name: {
-                'title': info.get('title', name),
-                'style': info.get('style', 'select'),
-                'options': [
-                    (param, option.get('title', param))
-                    for param, option in info['options'](request)
-                ],
-            }
-            for name, info in view.model.filters.items()
-        }
-            groups = view.model.field_group_info()
-            'list_title': '%s List'%title,
-            'list_fields': view.model.get_list_fields_meta(),
-            'list_api_url': reverse('%s-list'%label),
-            'list_url': reverse('%s-list'%label).replace('/api/','/#/'),
-            'ordering_fields': view.model.get_ordering_fields(),
-'''

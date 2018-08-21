@@ -3,15 +3,13 @@ from .models import Purchase
 
 
 class PublicPurchaseAPI(ModelAPI):
-    model = Purchase
     api_fields = ('items', 'sale_price')
-    crud = ['r']
 
 
 class PrivatePurchaseAPI(ModelAPI):
-    model = Purchase
     api_fields = ('items', 'sale_price', 'sale_date', 'profit', 'customer')
-    permissions = 'Check Logged In'  # TODO make this work
+    create = True
+    update = True
 
 
 publicapi.register(Purchase, PublicPurchaseAPI)

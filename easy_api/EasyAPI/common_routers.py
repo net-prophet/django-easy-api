@@ -41,7 +41,7 @@ def common_router(self):
             label = model._meta.app_label
             router.register(r'%s' % label,
                             CommonViewSet.permission_classes(
-                                p=self.permissions
+                                p=(self.permissions,)
                             ),
                             '%s %s' % (name, label))
         except AttributeError:
