@@ -22,142 +22,15 @@ SUPER = {
 }
 
 
-# Test the common route debug which just gives full api access to anyone
-class DebugAPITests(APITestCase):
-    def setUp(self):
-        # Set up the DB
-        for color, size, shape in itertools.product(COLORS, SIZES, SHAPES):
-            Widget.objects.create(color=color[0],
-                                  size=size[0],
-                                  shape=shape[0])
-
-        for i in range(0, 200):
-            PurchaseFactory.create()
-
-        # Let's create a test user and set our client
-        self.client = APIClient()
-
-    def test_getting_root(self):
-        self.client.get('/')
-
-    def test_debug_root(self):
-        response = self.client.get('/debugapi/')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_debug_get_widget(self):
-        widgets = self.client.get('/debugapi/widgets/')
-        self.assertEqual(widgets.status_code, status.HTTP_200_OK)
-
-        self.assertEqual(len(widgets.data), 336)
-        rand_index = random.randint(0, len(widgets.data) - 1)
-        widget_fields = ['id', 'name', 'color', 'size', 'shape', 'cost']
-
-        self.assertEqual(len(widgets.data[rand_index]), len(widget_fields))
-        [self.assertIn(field, widgets.data[rand_index])
-         for field in widget_fields]
-
-    def test_debug_get_purchases(self):
-        purchases = self.client.get('/debugapi/purchases/')
-        self.assertEqual(purchases.status_code, status.HTTP_200_OK)
-
-        self.assertEqual(len(purchases.data), 200)
-        rand_index = random.randint(0, len(purchases.data) - 1)
-        purchase_fields = ['id', 'sale_date', 'sale_price', 'profit',
-                           'customer', 'items']
-
-        self.assertEqual(len(purchases.data[rand_index]), len(purchase_fields))
-        [self.assertIn(field, purchases.data[rand_index])
-         for field in purchase_fields]
-
-    def test_debug_get_customers(self):
-        customers = self.client.get('/debugapi/customers/')
-        self.assertEqual(customers.status_code, status.HTTP_200_OK)
-
-        self.assertEqual(len(customers.data), 200)
-        rand_index = random.randint(0, len(customers.data) - 1)
-        customer_fields = ['id', 'name', 'state', 'gender', 'age']
-
-        self.assertEqual(len(customers.data[rand_index]), len(customer_fields))
-        [self.assertIn(field, customers.data[rand_index])
-         for field in customer_fields]
-
-
-# Test the common adminapi which just gives full api access to admins only
-class AdminAPITest(APITestCase):
-    def setUp(self):
-        # Set up the DB
-        for color, size, shape in itertools.product(COLORS, SIZES, SHAPES):
-            Widget.objects.create(color=color[0],
-                                  size=size[0],
-                                  shape=shape[0])
-
-        for i in range(0, 200):
-            PurchaseFactory.create()
-
-        # Let's create a test user and set our client
-        self.client = APIClient()
-        self.user = User.objects.create_superuser(username=SUPER['username'],
-                                                  email=SUPER['email'],
-                                                  password=SUPER['password'])
-        self.user.save()
-
-    def test_admin_root(self):
-        response = self.client.get('/adminapi/')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    def test_admin_get_widget(self):
-        widgets = self.client.get('/adminapi/widgets/')
-        self.assertEqual(widgets.status_code, status.HTTP_403_FORBIDDEN)
-        self.client.login(username=SUPER['username'],
-                          password=SUPER['password'])
-        widgets = self.client.get('/adminapi/widgets/')
-        self.assertEqual(widgets.status_code, status.HTTP_200_OK)
-
-        self.assertEqual(len(widgets.data), 336)
-        rand_index = random.randint(0, len(widgets.data) - 1)
-        widget_fields = ['id', 'name', 'color', 'size', 'shape', 'cost']
-
-        self.assertEqual(len(widgets.data[rand_index]), len(widget_fields))
-        [self.assertIn(field, widgets.data[rand_index])
-         for field in widget_fields]
-
-    def test_admin_get_purchases(self):
-        purchases = self.client.get('/adminapi/purchases/')
-        self.assertEqual(purchases.status_code, status.HTTP_403_FORBIDDEN)
-        self.client.login(username=SUPER['username'],
-                          password=SUPER['password'])
-        purchases = self.client.get('/adminapi/purchases/')
-        self.assertEqual(purchases.status_code, status.HTTP_200_OK)
-
-        self.assertEqual(len(purchases.data), 200)
-        rand_index = random.randint(0, len(purchases.data) - 1)
-        purchase_fields = ['id', 'sale_date', 'sale_price', 'profit',
-                           'customer', 'items']
-
-        self.assertEqual(len(purchases.data[rand_index]), len(purchase_fields))
-        [self.assertIn(field, purchases.data[rand_index])
-         for field in purchase_fields]
-
-    def test_admin_get_customers(self):
-        customers = self.client.get('/adminapi/customers/')
-        self.assertEqual(customers.status_code, status.HTTP_403_FORBIDDEN)
-        self.client.login(username=SUPER['username'],
-                          password=SUPER['password'])
-        customers = self.client.get('/adminapi/customers/')
-        self.assertEqual(customers.status_code, status.HTTP_200_OK)
-
-        self.assertEqual(len(customers.data), 200)
-        rand_index = random.randint(0, len(customers.data) - 1)
-        customer_fields = ['id', 'name', 'state', 'gender', 'age']
-
-        self.assertEqual(len(customers.data[rand_index]), len(customer_fields))
-        [self.assertIn(field, customers.data[rand_index])
-         for field in customer_fields]
-
-
 class PublicAPITest(APITestCase):
     def setUp(self):
+        # Let's create a test user and set our client
+        self.client = APIClient()
+
+    @classmethod
+    def setUpClass(cls):
         # Set up the DB
+        super(PublicAPITest, cls).setUpClass()
         for color, size, shape in itertools.product(COLORS, SIZES, SHAPES):
             Widget.objects.create(color=color[0],
                                   size=size[0],
@@ -165,13 +38,33 @@ class PublicAPITest(APITestCase):
 
         for i in range(0, 200):
             PurchaseFactory.create()
-
-        # Let's create a test user and set our client
-        self.client = APIClient()
 
     def test_public_root(self):
         response = self.client.get('/publicapi/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_public_metadata(self):
+        response = self.client.options('/publicapi/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertIn('name', response.data)
+        self.assertEqual(response.data['name'], 'Public API')
+        self.assertIn('description', response.data)
+        description = 'This is a public API'
+        self.assertEqual(response.data['description'], description)
+        self.assertIn('actions', response.data)
+
+    def test_model_metadata(self):
+        response = self.client.options('/publicapi/widgets/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertIn('name', response.data)
+        self.assertEqual(response.data['name'], 'Widgets')
+        self.assertIn('description', response.data)
+        description = 'Generated by EasyAPI'
+        self.assertEqual(response.data['description'], description)
+        self.assertIn('actions', response.data)
+        self.assertIn('filters', response.data)
 
     def test_public_get_widget(self):
         widgets = self.client.get('/publicapi/widgets/')
@@ -213,7 +106,12 @@ class PublicAPITest(APITestCase):
 # For this you get full API access but only if logged in
 class PrivateAPITest(APITestCase):
     def setUp(self):
+        self.client = APIClient()
+
+    @classmethod
+    def setUpClass(self):
         # Set up the DB
+        super(PrivateAPITest, self).setUpClass()
         for color, size, shape in itertools.product(COLORS, SIZES, SHAPES):
             Widget.objects.create(color=color[0],
                                   size=size[0],
@@ -223,7 +121,6 @@ class PrivateAPITest(APITestCase):
             PurchaseFactory.create()
 
         # Let's create a test user and set our client
-        self.client = APIClient()
         self.user = User.objects.create(username=TEST['username'],
                                         email=TEST['email'])
         self.user.set_password(TEST['password'])

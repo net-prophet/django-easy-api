@@ -12,7 +12,7 @@ class EasyAPIMetadata(SimpleMetadata):
             actions = [(k, v.__dict__['__doc__']) for k, v in
                        view.actions.items()]
             filters = [(k, v.__dict__['lookup_expr']) for k, v in
-                       view.filter_class().filters.items()]
+                       view.filterset_class().filters.items()]
             data.update({
                 'name': name,
                 'label': label,

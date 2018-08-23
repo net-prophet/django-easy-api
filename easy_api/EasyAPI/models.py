@@ -96,11 +96,6 @@ class EasyAPI(object):
         return self.get_urls(), self.name, self.name
 
     def get_urls(self):
-        from EasyAPI.common_routers import common_router
-
-        if self.name == 'debugapi' or self.name == 'adminapi':
-            return common_router(self)
-
         return easy_router(self)
 
     @classmethod
@@ -119,12 +114,11 @@ publicapi = EasyAPI('Public API',
 privateapi = EasyAPI('Private API',
                      permissions.IsAuthenticated,
                      )
-debugapi = EasyAPI('debugapi',
-                   permissions.AllowAny,
-                   )
-adminapi = EasyAPI('adminapi',
-                   permissions.IsAdminUser
-                   )
+
+complexapi = EasyAPI('Complex API',
+                     permissions.AllowAny,
+                     'API for testing a complicated permissions structure'
+                     )
 
 
 class ModelAPI(object):
