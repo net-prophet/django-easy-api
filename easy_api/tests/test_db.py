@@ -103,6 +103,10 @@ class PurchaseTests(TestCase):
                                  transform=lambda x: x,
                                  ordered=False)
 
+    def test_get_customer(self):
+        purch1 = Purchase.objects.first()
+        self.assertIsInstance(purch1.get_customer(), Customer)
+
     def test_correct_cost(self):
         purch1 = Purchase.objects.first()
         widg1 = Widget.objects.get(name='testwidget')

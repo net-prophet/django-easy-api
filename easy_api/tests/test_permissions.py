@@ -52,6 +52,45 @@ class PermissionsAPITest(APITestCase):
         )
         self.suser.save()
 
+    # Import the APIs that we have registered then try to hit their roots
+    def test_autodiscover(self):
+        api_names = ['Public API', 'Private API', 'Complex API']
+        from EasyAPI.models import all_apis
+        for api in all_apis:
+            self.assertIn(api.name, api_names)
+
+    def test_apps(self):
+        from django.apps import apps
+        from EasyAPI.models import EasyAPI
+        app_config = set(apps.get_app_configs())
+        self.assertEqual(EasyAPI.check_dependencies(app_config), [])
+        self.assertEqual(EasyAPI.check(EasyAPI), [])
+
+    def test_register_abstract_model(self):
+        from django.db import models
+        from EasyAPI.models import ModelAPI
+
+        class AbstractModel(models.Model):
+
+            class Meta:
+                abstract = True
+
+        class AbstractModelAPI(ModelAPI):
+            pass
+
+        from easy_api.api import complexapi
+        from django.core.exceptions import ImproperlyConfigured
+        with self.assertRaises(ImproperlyConfigured):
+            complexapi.register(AbstractModel, AbstractModelAPI)
+
+    def test_register_model_twice(self):
+        from widgets.models import Widget
+        from easy_api.api import complexapi
+        from widgets.api import ComplexWidgetAPI
+        from EasyAPI.models import AlreadyRegistered
+        with self.assertRaises(AlreadyRegistered):
+            complexapi.register(Widget, ComplexWidgetAPI)
+
     def test_root(self):
         response = self.client.get('/complexapi/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -81,19 +120,21 @@ class PermissionsAPITest(APITestCase):
         response = self.client.post('/complexapi/widgets/', data=create)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        # OK now lets delete this bad boy, also admin user
-        '''
+        # Let's check that we can retrieve what we just created
         delete_me = self.client.get('/complexapi/widgets/?name=test_widget')
-        print('deleteme data: ', delete_me)
-        print('deleteme data: ', delete_me.data)
-        deleted = self.client.delete('/complexapi/widgets/?name=test_widget',
-                                     data=delete_me)
+        for k, v in create.items():
+            self.assertEqual(delete_me.data[0][k], v)
+
+    # TODO implement deleting via queryset not by pk, basically bulk delete
+    def toto_delete_test(self):
+
+        # OK now lets delete this bad boy, also admin user
+        deleted = self.client.delete('/complexapi/widgets/?name=test_widget')
         print('deleteme: ', deleted)
         print('deleteme data: ', deleted.data)
         print('deleteme data: ', deleted.context_data)
         print('deleteme data: ', deleted.context)
-        self.assertEqual(delete_me.status_code, status.HTTP_200_OK)
-        '''
+        self.assertEqual(deleted.status_code, status.HTTP_200_OK)
 
     # Permissions to list widgets is IsAuthenticated
     def test_list_widget(self):
