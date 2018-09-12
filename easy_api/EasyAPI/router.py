@@ -3,13 +3,14 @@ from django.db import models
 
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.routers import DefaultRouter, APIRootView
 
 from django_filters.rest_framework import DjangoFilterBackend
 
-from EasyAPI.EasySerializer import EasySerializable, classproperty
 from EasyAPI.metadata import EasyAPIMetadata
+from EasyAPI.EasySerializer import EasySerializable, classproperty
 
 
 class EasyViewSet(viewsets.ModelViewSet):
@@ -28,10 +29,6 @@ class EasyViewSet(viewsets.ModelViewSet):
     @classmethod
     def get_view_name(self):
         return self.model._meta.app_label
-
-    @property
-    def fields(cls):
-        return cls.fields
 
     def get_serializer_class(self):
         e = EasySerializable.get_base_serializer_class()
@@ -156,6 +153,19 @@ class EasyViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data)
 
+    # from rest_framework.permissions import IsAdminUser
+    @action(methods=['delete'], detail=False)
+    def delete(self, request, *args, **kwargs):
+        qs = self.model.objects.filter(**request.query_params.dict())
+        if qs.count() > 1:
+            msg = 'Bulk delete is not implemented for this API.'
+            return Response(data=msg, status=status.HTTP_403_FORBIDDEN)
+        if qs.count() < 1:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        obj = qs.get()
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def perform_create(self, serializer):
         from django.core.exceptions import ValidationError
         from rest_framework import serializers
@@ -198,11 +208,8 @@ class EasyViewSet(viewsets.ModelViewSet):
             dispo = 'attachment; filename="%s"' % fn
             resp['Content-Disposition'] = dispo
             resp['Content-Type'] = 'text/csv; charset=utf-8'
+        resp['Count'] = queryset.count()
         return resp
-
-    @property
-    def permission_classes(cls):
-        return cls.get_permissions()
 
     def get_permissions(self):
         permission_classes = []

@@ -1,7 +1,6 @@
+from weakref import WeakSet
 from django.apps import apps
 from django.db.models.base import ModelBase
-from django.conf import settings
-from weakref import WeakSet
 
 from EasyAPI.router import easy_router
 from rest_framework import permissions
@@ -26,7 +25,7 @@ class EasyAPI(object):
         all_apis.add(self)
         self._registry.update(self._registry)
 
-    def check(self, app_configs):
+    def check(self, app_configs=None):
         if app_configs is None:
             app_configs = apps.get_app_configs()
             app_configs = set(app_configs)
@@ -41,13 +40,6 @@ class EasyAPI(object):
 
         return errors
 
-    def check_api_app(app_configs, **kwargs):
-        errors = []  # TODO if ModelAPI isn't models.Model then this fails
-        return errors
-        for api in all_apis:
-            errors.extend(api.check(app_configs))
-            return errors
-
     def check_dependencies(app_configs, **kwargs):
         errors = []
         from django.core import checks
@@ -59,12 +51,7 @@ class EasyAPI(object):
             errors.append(missing_app)
         return errors
 
-    def register(cls, model, api_class, **options):
-
-        try:
-            cls.verify_api(cls.name)
-        except Exception as e:
-            print(e)
+    def register(cls, model, api_class):
 
         api_class = api_class or ModelAPI
         if isinstance(model, ModelBase):
@@ -97,28 +84,6 @@ class EasyAPI(object):
 
     def get_urls(self):
         return easy_router(self)
-
-    @classmethod
-    def verify_api(cls, name):
-        # TODO i don't think i need this so for now lets pass
-        # This becomes interesting if we can fix instantiation
-        return
-        if name not in set(settings.EASYAPIS):
-            raise Exception('This is not a registered EasyAPI!')
-
-
-publicapi = EasyAPI('Public API',
-                    permissions.AllowAny,
-                    'This is a public API'
-                    )
-privateapi = EasyAPI('Private API',
-                     permissions.IsAuthenticated,
-                     )
-
-complexapi = EasyAPI('Complex API',
-                     permissions.AllowAny,
-                     'API for testing a complicated permissions structure'
-                     )
 
 
 class ModelAPI(object):

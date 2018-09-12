@@ -9,7 +9,6 @@ class EasyAPIConfig(AppConfig):
 
     def ready(self):
         from EasyAPI.models import EasyAPI
-        checks.register(EasyAPI.check_api_app, checks.Tags.models)
         checks.register(EasyAPI.check_dependencies, checks.Tags.models)
         self.module.autodiscover()
         super().ready()

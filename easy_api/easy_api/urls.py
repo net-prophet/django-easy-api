@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.conf.urls import url
-from EasyAPI.models import publicapi, privateapi, complexapi
+from .api import publicapi, privateapi, complexapi
 
 
 urlpatterns = [

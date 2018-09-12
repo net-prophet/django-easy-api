@@ -97,7 +97,6 @@ class PermissionsAPITest(APITestCase):
 
     # Permissions to create and delete a widget are admin only
     def test_create_and_delete_widget(self):
-
         # So we can't create not logged in
         widgets = self.client.get('/complexapi/widgets/')
         self.assertEqual(widgets.status_code, status.HTTP_403_FORBIDDEN)
@@ -125,16 +124,22 @@ class PermissionsAPITest(APITestCase):
         for k, v in create.items():
             self.assertEqual(delete_me.data[0][k], v)
 
-    # TODO implement deleting via queryset not by pk, basically bulk delete
-    def toto_delete_test(self):
+        # Bulk delete not available this should fail
+        deleted = self.client.delete('/complexapi/widgets/?color=red')
+        self.assertEqual(deleted.status_code, status.HTTP_403_FORBIDDEN)
 
-        # OK now lets delete this bad boy, also admin user
+        # Deleting something that doesn't exist
+        deleted = self.client.delete('/complexapi/widgets/?name=peter')
+        self.assertEqual(deleted.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Let's actually delete this time
         deleted = self.client.delete('/complexapi/widgets/?name=test_widget')
-        print('deleteme: ', deleted)
-        print('deleteme data: ', deleted.data)
-        print('deleteme data: ', deleted.context_data)
-        print('deleteme data: ', deleted.context)
+        self.assertEqual(deleted.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Let's check that we can retrieve what we just created
+        deleted = self.client.get('/complexapi/widgets/?name=test_widget')
         self.assertEqual(deleted.status_code, status.HTTP_200_OK)
+        self.assertEqual(deleted.data, [])
 
     # Permissions to list widgets is IsAuthenticated
     def test_list_widget(self):
