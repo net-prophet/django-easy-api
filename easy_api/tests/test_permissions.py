@@ -1,5 +1,6 @@
 import itertools
 from rest_framework import status
+from django.test import modify_settings
 from widgets.models import Widget
 from widgets.options import COLORS, SIZES, SHAPES
 from tests.factories import PurchaseFactory
@@ -59,12 +60,11 @@ class PermissionsAPITest(APITestCase):
         for api in all_apis:
             self.assertIn(api.name, api_names)
 
-    def test_apps(self):
+    def test_apps_installed(self):
         from django.apps import apps
         from EasyAPI.models import EasyAPI
         app_config = set(apps.get_app_configs())
         self.assertEqual(EasyAPI.check_dependencies(app_config), [])
-        self.assertEqual(EasyAPI.check(EasyAPI), [])
 
     def test_register_abstract_model(self):
         from django.db import models
@@ -83,6 +83,17 @@ class PermissionsAPITest(APITestCase):
         with self.assertRaises(ImproperlyConfigured):
             complexapi.register(AbstractModel, AbstractModelAPI)
 
+    def test_register_object_not_modelapi_subclass(self):
+
+        class NotAModelAPI(object):
+            pass
+
+        from widgets.models import Widget
+        from easy_api.api import complexapi
+        from django.core.exceptions import ImproperlyConfigured
+        with self.assertRaises(ImproperlyConfigured):
+            complexapi.register(Widget, NotAModelAPI)
+
     def test_register_model_twice(self):
         from widgets.models import Widget
         from easy_api.api import complexapi
@@ -90,6 +101,43 @@ class PermissionsAPITest(APITestCase):
         from EasyAPI.models import AlreadyRegistered
         with self.assertRaises(AlreadyRegistered):
             complexapi.register(Widget, ComplexWidgetAPI)
+
+    @modify_settings(INSTALLED_APPS={'remove': ['EasyAPI']})
+    def test_checking_easyapi_installed(self):
+        from django.apps import apps
+        from EasyAPI.models import EasyAPI
+        app_config = set(apps.get_app_configs())
+        self.assertEqual(EasyAPI.check_dependencies(app_config), [])
+
+    @modify_settings(INSTALLED_APPS={'remove': ['rest_framework']})
+    def test_checking_drf_installed(self):
+        from django.apps import apps
+        from EasyAPI.models import EasyAPI
+        from django.core.checks import Error
+        app = 'rest_framework'
+        expected = [
+            Error(
+                "'%s' must be in INSTALLED_APPS to use django-easy-api" % app
+            )
+        ]
+        app_config = set(apps.get_app_configs())
+        error = EasyAPI.check_dependencies(app_config)
+        self.assertEqual(error, expected)
+
+    @modify_settings(INSTALLED_APPS={'remove': ['django_filters']})
+    def test_checking_django_filters_installed(self):
+        from django.apps import apps
+        from EasyAPI.models import EasyAPI
+        from django.core.checks import Error
+        app = 'django_filters'
+        expected = [
+            Error(
+                "'%s' must be in INSTALLED_APPS to use django-easy-api" % app
+            )
+        ]
+        app_config = set(apps.get_app_configs())
+        error = EasyAPI.check_dependencies(app_config)
+        self.assertEqual(error, expected)
 
     def test_root(self):
         response = self.client.get('/complexapi/')

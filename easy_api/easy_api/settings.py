@@ -41,14 +41,6 @@ REST_FRAMEWORK = {
     'DEFAULT_METADATA_CLASS': 'EasyAPI.metadata.EasyAPIMetadata',
 }
 
-# Register the apis you'd like for your project
-
-EASYAPIS = {
-    'publicapi': (REST_FRAMEWORK['DEFAULT_PERMISSION_CLASSES'],),
-    'privateapi': ('permissions.IsAuthenticated',),
-    'debugapi': ('permissions.AllowAny',),
-    'adminapi': ('permissions.IsAdminUser',),
-}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

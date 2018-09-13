@@ -25,30 +25,25 @@ class EasyAPI(object):
         all_apis.add(self)
         self._registry.update(self._registry)
 
-    def check(self, app_configs=None):
-        if app_configs is None:
-            app_configs = apps.get_app_configs()
-            app_configs = set(app_configs)
-
-        errors = []
-        modelapis = (o for o in self._registry.values() if o.__class__ is not
-                     EasyAPI)
-
-        for modelapi in modelapis:
-            if modelapi.model._meta.app_config in app_configs:
-                errors.extend(modelapi.check())
-
-        return errors
-
     def check_dependencies(app_configs, **kwargs):
         errors = []
         from django.core import checks
-        if not apps.is_installed('django.contrib.contenttypes'):
-            missing_app = checks.Error(
-                "'django.contrib.contenttypes' must be in INSTALLED_APPS"
-                " to use django-easy-api",
-            )
-            errors.append(missing_app)
+        if not apps.is_installed('EasyAPI'):
+            return errors
+
+        error = "'%s' must be in INSTALLED_APPS to use django-easy-api"
+
+        def check_app_installed(app):
+            if not apps.is_installed(app):
+                missing_app = checks.Error(
+                    error % app
+                )
+                errors.append(missing_app)
+
+        check_app_installed('django.contrib.contenttypes')
+        check_app_installed('rest_framework')
+        check_app_installed('django_filters')
+
         return errors
 
     def register(cls, model, api_class):
@@ -57,14 +52,21 @@ class EasyAPI(object):
         if isinstance(model, ModelBase):
             model = [model]
 
+        # Check to make sure we are registering ModelAPI only
+        from django.core.exceptions import ImproperlyConfigured
+        if not issubclass(api_class, ModelAPI):
+            raise ImproperlyConfigured(
+                'The model %s is not a ModelAPI, so it cannot '
+                'be registered with the api.' % api_class.__name__
+            )
+
         api_class.permissions = cls.create_model_perms(api_class)
 
         for m in model:
             if m._meta.abstract:
-                from django.core.exceptions import ImproperlyConfigured
                 raise ImproperlyConfigured(
                     'The model %s is abstract, so it cannot '
-                    'be registered with api.' % m.__name__
+                    'be registered with the api.' % m.__name__
                 )
             if m in cls._registry:
                 raise AlreadyRegistered(
