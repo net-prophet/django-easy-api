@@ -11,11 +11,12 @@ class classproperty(object):
 
 class EasySerializable(object):
     @classmethod
-    def get_base_serializer_class(cls):
+    def get_base_serializer_class(cls, the_model, the_fields):
 
         class EasyBaseSerializer(serializers.ModelSerializer):
 
             class Meta:
-                model = cls
+                model = the_model
+                fields = the_fields
 
         return EasyBaseSerializer

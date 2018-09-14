@@ -1,6 +1,3 @@
-import django_filters
-from django.db import models
-
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -9,7 +6,7 @@ from rest_framework.filters import OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 
 from EasyAPI.metadata import EasyAPIMetadata
-from EasyAPI.EasySerializer import EasySerializable, classproperty
+from EasyAPI.EasySerializer import classproperty
 
 
 class EasyViewSet(viewsets.ModelViewSet):
@@ -30,10 +27,9 @@ class EasyViewSet(viewsets.ModelViewSet):
         return self.model._meta.app_label
 
     def get_serializer_class(self):
-        e = EasySerializable.get_base_serializer_class()
-        e.Meta.fields = self.fields
-        e.Meta.model = self.model
-        return e
+        from EasyAPI.EasySerializer import EasySerializable
+        return EasySerializable.get_base_serializer_class(self.model,
+                                                          self.fields)
 
     def get_queryset(self):
         return self.model.objects.all()
@@ -48,53 +44,8 @@ class EasyViewSet(viewsets.ModelViewSet):
 
     @classmethod
     def get_filter_class(cls):
-        class GenericFilter(django_filters.FilterSet):
-
-            def num_filter(self, name, lookup):
-                return django_filters.NumberFilter(
-                    field_name=name,
-                    lookup_expr=lookup
-                )
-
-            def char_filter(self, name, lookup):
-                return django_filters.CharFilter(
-                    field_name=name,
-                    lookup_expr=lookup
-                )
-
-            def date_filter(self, name, lookup):
-                return django_filters.DateFilter(
-                    name=name,
-                    lookup_expr=lookup
-                )
-
-            def __init__(self, *args, **kwargs):
-                super(GenericFilter, self).__init__(*args, **kwargs)
-                for f in cls.model._meta.get_fields():
-                    if f.name not in cls.fields:
-                        continue
-                    if isinstance(f, (models.CharField, models.TextField)):
-                        contains = f.name + '_contains'
-                        self.filters[contains] = self.char_filter(f.name,
-                                                                  'icontains'
-                                                                  )
-
-                    if isinstance(f,
-                                  (models.FloatField,
-                                   models.IntegerField,
-                                   models.DecimalField
-                                   )
-                                  ):
-                        lt = f.name + '_less_than'
-                        self.filters[lt] = self.num_filter(f.name, 'lt')
-                        gt = f.name + '_greater_than'
-                        self.filters[gt] = self.num_filter(f.name, 'gt')
-
-            class Meta:
-                model = cls.model
-                fields = list(cls.fields)
-
-        return GenericFilter
+        from EasyAPI.EasyFilters import EasyFilters
+        return EasyFilters.get_filter_class(cls.model, list(cls.fields))
 
     @classmethod
     def view_save_data(cls, view, request):

@@ -53,6 +53,37 @@ class PermissionsAPITest(APITestCase):
         )
         self.suser.save()
 
+    def test_filtering_widgets(self):
+        api_widgets = self.client.get('/publicapi/widgets/')
+        widgets = Widget.objects.all()
+        self.assertEqual(api_widgets.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(api_widgets.data), widgets.count())
+        for c in COLORS:
+            url = '/publicapi/widgets/?color=%s' % c[0]
+            api_widgets = self.client.get(url)
+            widgets = Widget.objects.all().filter(color=c[0])
+            self.assertEqual(api_widgets.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(api_widgets.data), widgets.count())
+
+        # Lets login to filter private fields
+        self.client.login(username=TEST['username'],
+                          password=TEST['password'])
+
+        for color, size, shape in itertools.product(COLORS, SIZES, SHAPES):
+            fields = (color[0], size[0], shape[0])
+            url = '/privateapi/widgets/?color=%s&size=%s&shape=%s' % fields
+            api_widgets = self.client.get(url)
+            widgets = Widget.objects.all().filter(color=color[0],
+                                                  size=size[0],
+                                                  shape=shape[0]
+                                                  )
+            self.assertEqual(api_widgets.status_code, status.HTTP_200_OK)
+            self.assertEqual(len(api_widgets.data), widgets.count())
+
+    def test_root(self):
+        response = self.client.get('/complexapi/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
     # Import the APIs that we have registered then try to hit their roots
     def test_autodiscover(self):
         api_names = ['Public API', 'Private API', 'Complex API']
@@ -138,10 +169,6 @@ class PermissionsAPITest(APITestCase):
         app_config = set(apps.get_app_configs())
         error = EasyAPI.check_dependencies(app_config)
         self.assertEqual(error, expected)
-
-    def test_root(self):
-        response = self.client.get('/complexapi/')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     # Permissions to create and delete a widget are admin only
     def test_create_and_delete_widget(self):
