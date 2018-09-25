@@ -3,7 +3,6 @@ from rest_framework import status
 from django.test import modify_settings
 from widgets.models import Widget
 from widgets.options import COLORS, SIZES, SHAPES
-from tests.factories import PurchaseFactory
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase, APIClient
 import random
@@ -23,21 +22,18 @@ SUPER = {
 }
 
 
-class PermissionsAPITest(APITestCase):
+class APIMethodsTest(APITestCase):
     def setUp(self):
         self.client = APIClient()
 
     @classmethod
     def setUpClass(self):
         # Set up the DB
-        super(PermissionsAPITest, self).setUpClass()
+        super(APIMethodsTest, self).setUpClass()
         for color, size, shape in itertools.product(COLORS, SIZES, SHAPES):
             Widget.objects.create(color=color[0],
                                   size=size[0],
                                   shape=shape[0])
-
-        for i in range(0, 200):
-            PurchaseFactory.create()
 
         # Let's create a test user and set our client
         self.user = User.objects.create(username=TEST['username'],
@@ -52,33 +48,6 @@ class PermissionsAPITest(APITestCase):
             password=SUPER['password']
         )
         self.suser.save()
-
-    def test_filtering_widgets(self):
-        api_widgets = self.client.get('/publicapi/widgets/')
-        widgets = Widget.objects.all()
-        self.assertEqual(api_widgets.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(api_widgets.data), widgets.count())
-        for c in COLORS:
-            url = '/publicapi/widgets/?color=%s' % c[0]
-            api_widgets = self.client.get(url)
-            widgets = Widget.objects.all().filter(color=c[0])
-            self.assertEqual(api_widgets.status_code, status.HTTP_200_OK)
-            self.assertEqual(len(api_widgets.data), widgets.count())
-
-        # Lets login to filter private fields
-        self.client.login(username=TEST['username'],
-                          password=TEST['password'])
-
-        for color, size, shape in itertools.product(COLORS, SIZES, SHAPES):
-            fields = (color[0], size[0], shape[0])
-            url = '/privateapi/widgets/?color=%s&size=%s&shape=%s' % fields
-            api_widgets = self.client.get(url)
-            widgets = Widget.objects.all().filter(color=color[0],
-                                                  size=size[0],
-                                                  shape=shape[0]
-                                                  )
-            self.assertEqual(api_widgets.status_code, status.HTTP_200_OK)
-            self.assertEqual(len(api_widgets.data), widgets.count())
 
     def test_root(self):
         response = self.client.get('/complexapi/')
@@ -181,6 +150,7 @@ class PermissionsAPITest(APITestCase):
                           password=TEST['password'])
         widgets = self.client.get('/complexapi/widgets/')
         self.assertEqual(widgets.status_code, status.HTTP_200_OK)
+
         create = {'name': 'test_widget',
                   'color': 'blue',
                   'size': 'large',
@@ -194,27 +164,30 @@ class PermissionsAPITest(APITestCase):
         response = self.client.post('/complexapi/widgets/', data=create)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        # Let's check that we can retrieve what we just created
-        delete_me = self.client.get('/complexapi/widgets/?name=test_widget')
+        # Let's retrieve it with our filters
+        filtered = self.client.get('/complexapi/widgets/?name=test_widget')
         for k, v in create.items():
-            self.assertEqual(delete_me.data[0][k], v)
+            self.assertEqual(filtered.data[0][k], v)
 
-        # Bulk delete not available this should fail
-        deleted = self.client.delete('/complexapi/widgets/?color=red')
-        self.assertEqual(deleted.status_code, status.HTTP_403_FORBIDDEN)
+        # Let's check that we can retrieve what we just created
+        pk = response.data['pk']
+        url = '/complexapi/widgets/%s/' % str(pk)
+        delete_me = self.client.get(url)
+        for k, v in create.items():
+            self.assertEqual(delete_me.data[k], v)
 
-        # Deleting something that doesn't exist
-        deleted = self.client.delete('/complexapi/widgets/?name=peter')
-        self.assertEqual(deleted.status_code, status.HTTP_404_NOT_FOUND)
-
-        # Let's actually delete this time
-        deleted = self.client.delete('/complexapi/widgets/?name=test_widget')
+        # Delete it
+        deleted = self.client.delete(url)
         self.assertEqual(deleted.status_code, status.HTTP_204_NO_CONTENT)
 
-        # Let's check that we can retrieve what we just created
-        deleted = self.client.get('/complexapi/widgets/?name=test_widget')
-        self.assertEqual(deleted.status_code, status.HTTP_200_OK)
-        self.assertEqual(deleted.data, [])
+        # Check if its deleted
+        deleted = self.client.delete(url)
+        self.assertEqual(deleted.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Check if its deleted via filter
+        filtered_del = self.client.get('/complexapi/widgets/?name=test_widget')
+        self.assertEqual(filtered_del.status_code, status.HTTP_200_OK)
+        self.assertEqual(filtered_del.data, [])
 
     # Permissions to list widgets is IsAuthenticated
     def test_list_widget(self):
@@ -234,7 +207,7 @@ class PermissionsAPITest(APITestCase):
 
         # Then we randomly pick one to make sure the fields are present
         rand_index = random.randint(0, len(widgets.data) - 1)
-        widget_fields = ['name', 'color', 'size', 'shape', 'cost']
+        widget_fields = ['name', 'color', 'size', 'shape', 'cost', 'pk']
         self.assertEqual(len(widgets.data[rand_index]), len(widget_fields))
         [self.assertIn(field, widgets.data[rand_index])
          for field in widget_fields]
@@ -242,13 +215,33 @@ class PermissionsAPITest(APITestCase):
     # Permissions to retrieve widgets are AllowAny
     def test_retrieve_widget(self):
 
-        # So should fail here
         rand_index = random.randint(1, 336)
-        url = '/complexapi/widgets/' + str(rand_index) + '/'
-        widgets = self.client.get(url)
+        url = '/complexapi/widgets/%s/'
+        widgets = self.client.get(url % str(rand_index))
         self.assertEqual(widgets.status_code, status.HTTP_200_OK)
 
-        widget_fields = ['name', 'color', 'size', 'shape', 'cost']
+        pk = widgets.data['pk']
+        self.assertEqual(pk, rand_index)
+        widgets_from_pk = self.client.get(url % str(pk))
+        self.assertEqual(widgets.data, widgets_from_pk.data)
+
+        widget_fields = ['name', 'color', 'size', 'shape', 'cost', 'pk']
         self.assertEqual(len(widgets.data), len(widget_fields))
         [self.assertIn(field, widgets.data)
          for field in widget_fields]
+
+    def test_update_widget(self):
+
+        rand_index = random.randint(1, 336)
+        url = '/complexapi/widgets/%s/'
+        widgets = self.client.get(url % str(rand_index))
+        self.assertEqual(widgets.status_code, status.HTTP_200_OK)
+
+        name = {'name': 'changed_name'}
+        changed = self.client.patch(url % str(widgets.data['pk']), data=name)
+        self.assertEqual(changed.status_code, status.HTTP_200_OK)
+
+        changed_get = self.client.get(url % str(changed.data['pk']))
+        self.assertEqual(changed_get.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(changed_get.data['name'], name['name'])

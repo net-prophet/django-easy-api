@@ -66,13 +66,18 @@ class PublicAPITest(APITestCase):
         self.assertIn('actions', response.data)
         self.assertIn('filters', response.data)
 
+        # Test that None has_permission is False (always returns False)
+        # This is PURELY to get to 100% test coverage, it's a dumb test
+        from EasyAPI.models import ModelAPI
+        self.assertFalse(ModelAPI.AllowNone.has_permission(None, None, None))
+
     def test_public_get_widget(self):
         widgets = self.client.get('/publicapi/widgets/')
         self.assertEqual(widgets.status_code, status.HTTP_200_OK)
 
         self.assertEqual(len(widgets.data), 336)
         rand_index = random.randint(0, len(widgets.data) - 1)
-        widget_fields = ['name', 'color']
+        widget_fields = ['name', 'color', 'pk']
 
         self.assertEqual(len(widgets.data[rand_index]), len(widget_fields))
         [self.assertIn(field, widgets.data[rand_index])
@@ -84,7 +89,7 @@ class PublicAPITest(APITestCase):
 
         self.assertEqual(len(purchases.data), 200)
         rand_index = random.randint(0, len(purchases.data) - 1)
-        purchase_fields = ['items', 'sale_price']
+        purchase_fields = ['items', 'sale_price', 'pk']
 
         self.assertEqual(len(purchases.data[rand_index]), len(purchase_fields))
         [self.assertIn(field, purchases.data[rand_index])
@@ -96,7 +101,7 @@ class PublicAPITest(APITestCase):
 
         self.assertEqual(len(customers.data), 200)
         rand_index = random.randint(0, len(customers.data) - 1)
-        customer_fields = ['name', 'age']
+        customer_fields = ['name', 'age', 'pk']
 
         self.assertEqual(len(customers.data[rand_index]), len(customer_fields))
         [self.assertIn(field, customers.data[rand_index])
@@ -140,7 +145,7 @@ class PrivateAPITest(APITestCase):
 
         self.assertEqual(len(widgets.data), 336)
         rand_index = random.randint(0, len(widgets.data) - 1)
-        widget_fields = ['name', 'color', 'size', 'shape', 'cost']
+        widget_fields = ['name', 'color', 'size', 'shape', 'cost', 'pk']
 
         self.assertEqual(len(widgets.data[rand_index]), len(widget_fields))
         [self.assertIn(field, widgets.data[rand_index])
@@ -157,7 +162,7 @@ class PrivateAPITest(APITestCase):
         self.assertEqual(len(purchases.data), 200)
         rand_index = random.randint(0, len(purchases.data) - 1)
         purchase_fields = ['sale_date', 'sale_price', 'profit',
-                           'customer', 'items']
+                           'customer', 'items', 'pk']
 
         self.assertEqual(len(purchases.data[rand_index]), len(purchase_fields))
         [self.assertIn(field, purchases.data[rand_index])
@@ -173,7 +178,7 @@ class PrivateAPITest(APITestCase):
 
         self.assertEqual(len(customers.data), 200)
         rand_index = random.randint(0, len(customers.data) - 1)
-        customer_fields = ['name', 'state', 'gender', 'age']
+        customer_fields = ['name', 'state', 'gender', 'age', 'pk']
 
         self.assertEqual(len(customers.data[rand_index]), len(customer_fields))
         [self.assertIn(field, customers.data[rand_index])

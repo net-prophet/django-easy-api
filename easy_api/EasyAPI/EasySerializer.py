@@ -12,6 +12,7 @@ class classproperty(object):
 class EasySerializable(object):
     @classmethod
     def get_base_serializer_class(cls, the_model, the_fields):
+        the_fields = the_fields + ('pk',)
 
         class EasyBaseSerializer(serializers.ModelSerializer):
 

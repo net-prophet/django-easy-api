@@ -1,8 +1,9 @@
 import datetime
 from django.test import TestCase
+
 from widgets.models import Widget
-from purchases.models import Purchase
 from customers.models import Customer
+from purchases.models import Purchase
 
 
 class WidgetTests(TestCase):

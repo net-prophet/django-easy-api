@@ -1,6 +1,5 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 
 from django_filters.rest_framework import DjangoFilterBackend
@@ -102,19 +101,6 @@ class EasyViewSet(viewsets.ModelViewSet):
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)
-
-    # from rest_framework.permissions import IsAdminUser
-    @action(methods=['delete'], detail=False)
-    def delete(self, request, *args, **kwargs):
-        qs = self.model.objects.filter(**request.query_params.dict())
-        if qs.count() > 1:
-            msg = 'Bulk delete is not implemented for this API.'
-            return Response(data=msg, status=status.HTTP_403_FORBIDDEN)
-        if qs.count() < 1:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        obj = qs.get()
-        obj.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def perform_create(self, serializer):
         from django.core.exceptions import ValidationError
