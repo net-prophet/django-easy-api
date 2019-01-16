@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework.filters import OrderingFilter
 
 from django_filters.rest_framework import DjangoFilterBackend
+from graphql import GraphQLError
+
 
 from EasyAPI.metadata import EasyAPIMetadata
 from EasyAPI.EasySerializer import classproperty
@@ -13,25 +15,135 @@ class EasyViewSet(viewsets.ModelViewSet):
     filter_backends = (DjangoFilterBackend, OrderingFilter)
 
     @classmethod
-    def kwargs(cls, **kwargs):
-        class Kwargs(cls):
-            fields = kwargs['fields']
-            model = kwargs['model']
-            actions = kwargs['actions']
-            description = kwargs['description']
-        return Kwargs
+    def factory(cls, **kwargs):
+        class EasyViewSetInstance(EasyViewSet):
+            pass
+
+        for attr, value in kwargs.items():
+            setattr(EasyViewSetInstance, attr, value)
+
+        return EasyViewSetInstance
 
     @classmethod
     def get_view_name(self):
         return self.model._meta.app_label
 
-    def get_serializer_class(self):
+    @classmethod
+    def get_serializer_class(cls):
         from EasyAPI.EasySerializer import EasySerializable
-        return EasySerializable.get_base_serializer_class(self.model,
-                                                          self.fields)
+        return EasySerializable.get_base_serializer_class(cls.model,
+                                                          cls.fields)
+
+    @classmethod
+    def get_graphql_query(cls):
+        import types
+        from graphene import relay, ObjectType
+        from graphene_django.types import DjangoObjectType
+        from graphene_django.filter import DjangoFilterConnectionField
+        from graphene_django.rest_framework.mutation import SerializerMutation
+
+        model_name = cls.model._meta.model_name
+        plural = cls.model._meta.verbose_name_plural
+
+        class EasyGraphQLNodeMeta:
+            model = cls.model
+            name = model_name
+            interfaces = (relay.Node, )
+            only_fields = cls.fields
+
+        class EasyGraphQLUpsertMutationMeta:
+            serializer_class = cls.get_serializer_class()
+
+
+        def get_node(node_cls, info, id):
+            qs = cls.get_queryset_for_user(info.context.user)
+            if not cls.actions['retrieve']().has_permission(info.context, info):
+                qs = qs.none()
+
+            try:
+                return qs.get(id=id)
+            except cls.model.DoesNotExist:
+                return None
+
+        def upsert_get_serializer_kwargs(mutation_cls, root, info, **input):
+            qs = cls.get_queryset_for_user(info.context.user)
+
+            if 'pk' in input:
+                action = 'edit'
+            else:
+                action = 'create'
+
+            # Do permissions checking on edit and create
+            if not cls.actions[action]().has_permission(info.context, info):
+                raise GraphQLError("You don't have permission to %s this %s"
+                                   %(action, model_name))
+
+            if action == 'edit':
+                instance = qs.filter(id=input['pk']).first()
+                del input['pk']
+                if instance:
+                    return {'instance': instance, 'data': input, 'partial': True}
+
+                else:
+                    raise http.Http404
+
+
+            return {'data': input, 'partial': True}
+
+
+        node = type('%s_graphql_node'%model_name,
+                    (DjangoObjectType, ), {
+                        'Meta': EasyGraphQLNodeMeta,
+                        'get_node': classmethod(get_node)
+                    })
+
+        upsert = type('%s_graphql_upsert'%model_name,
+                      (SerializerMutation, ), {
+                          'Meta': EasyGraphQLUpsertMutationMeta,
+                          'get_serializer_kwargs': classmethod(upsert_get_serializer_kwargs)
+                      })
+
+        class EasyGraphQLQuery(ObjectType):
+            def resolve_all(self, info):
+                qs = cls.get_queryset_for_user(info.context.user)
+                if not cls.actions['list']().has_permission(info.context, info):
+                    qs = qs.none()
+                return qs
+
+        class EasyGraphQLMutation(ObjectType):
+            pass
+
+
+        setattr(EasyGraphQLQuery, model_name,
+                relay.Node.Field(node))
+
+        setattr(EasyGraphQLQuery, 'all_%s'%plural,
+                DjangoFilterConnectionField(node,
+                        filterset_class=cls.get_filter_class()))
+
+        setattr(EasyGraphQLQuery, 'resolve_all_%s'%plural,
+                EasyGraphQLQuery.resolve_all)
+
+        setattr(EasyGraphQLMutation, 'upsert_%s'%model_name,
+                upsert.Field())
+
+        return EasyGraphQLQuery, EasyGraphQLMutation
+
+
+    @classmethod
+    def get_queryset_for_user(cls, user):
+        if hasattr(cls.model_api, 'get_queryset_for_user'):
+            return cls.model_api().get_queryset_for_user(cls, user)
+        return cls.model.objects.all()
+
+    @classmethod
+    def get_queryset_for_class(cls):
+        if cls.model_api and hasattr(cls.model_api, 'get_queryset'):
+            return cls.model_api().get_queryset(cls)
+        return cls.model.objects.all()
 
     def get_queryset(self):
-        return self.model.objects.all()
+        return self.get_queryset_for_class()
 
     @classproperty
     def filters(cls):
@@ -44,7 +156,8 @@ class EasyViewSet(viewsets.ModelViewSet):
     @classmethod
     def get_filter_class(cls):
         from EasyAPI.EasyFilters import EasyFilters
-        return EasyFilters.get_filter_class(cls.model, list(cls.fields))
+        return EasyFilters.get_filter_class(cls.model, [f for f in cls.fields if
+                                                        f != 'pk'])
 
     @classmethod
     def view_save_data(cls, view, request):

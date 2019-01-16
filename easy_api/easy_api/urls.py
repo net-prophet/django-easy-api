@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.conf.urls import url
 from .api import publicapi, privateapi, complexapi
+from graphene_django.views import GraphQLView
 
 
 urlpatterns = [

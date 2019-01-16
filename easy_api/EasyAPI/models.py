@@ -5,6 +5,10 @@ from django.db.models.base import ModelBase
 from EasyAPI.router import easy_router
 from rest_framework import permissions
 
+from graphene import relay
+from graphene_django.types import *
+from graphene_django.filter import DjangoFilterConnectionField
+
 all_apis = WeakSet()
 actions = ['create', 'edit', 'retrieve', 'list', 'delete']
 
@@ -15,6 +19,7 @@ class AlreadyRegistered(Exception):
 
 class EasyAPI(object):
     _registry = {}
+    _queries = {}
 
     def __init__(self, name, perm, desc=None):
         self.name = name
@@ -46,11 +51,11 @@ class EasyAPI(object):
 
         return errors
 
-    def register(cls, model, api_class):
+    def register(cls, models, api_class):
 
         api_class = api_class or ModelAPI
-        if isinstance(model, ModelBase):
-            model = [model]
+        if isinstance(models, ModelBase):
+            models = [models]
 
         # Check to make sure we are registering ModelAPI only
         from django.core.exceptions import ImproperlyConfigured
@@ -62,17 +67,18 @@ class EasyAPI(object):
 
         api_class.permissions = cls.create_model_perms(api_class)
 
-        for m in model:
-            if m._meta.abstract:
+        for model in models:
+            if model._meta.abstract:
                 raise ImproperlyConfigured(
                     'The model %s is abstract, so it cannot '
-                    'be registered with the api.' % m.__name__
+                    'be registered with the api.' % model.__name__
                 )
-            if m in cls._registry:
+            if model in cls._registry:
                 raise AlreadyRegistered(
-                    'The model %s is already registered.' % m.__name__
+                    'The model %s is already registered.' % model.__name__
                 )
-            cls._registry[m] = api_class
+            cls._registry[model] = api_class
+
 
     def create_model_perms(cls, model_api):
         import copy
@@ -89,7 +95,6 @@ class EasyAPI(object):
 
 
 class ModelAPI(object):
-
     class AllowNone(permissions.BasePermission):
         def has_permission(self, request, view):
             return False

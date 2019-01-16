@@ -7,11 +7,11 @@ class EasyFilters(object):
     @classmethod
     def get_filter_class(cls, the_model, the_fields):
         class GenericBaseFilters(django_filters.FilterSet):
-
             def __init__(self, *args, **kwargs):
                 super(GenericBaseFilters, self).__init__(*args, **kwargs)
                 for f in the_model._meta.get_fields():
                     if f.name not in the_fields:
+                        print('skipping', f.name)
                         continue
                     if isinstance(f, (models.CharField, models.TextField)):
                         contains = f.name + '_contains'

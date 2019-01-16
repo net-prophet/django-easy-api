@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'EasyAPI',
     'rest_framework',
     'django_filters',
+    'graphene_django',
 ]
 
 
