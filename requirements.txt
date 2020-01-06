@@ -3,3 +3,4 @@ markdown
 factory_boy
 djangorestframework
 django-filter
+django-cors-headers
