@@ -4,3 +4,4 @@ factory_boy
 djangorestframework
 django-filter
 django-cors-headers
+graphene-django

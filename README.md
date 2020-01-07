@@ -1,1 +1,4 @@
 Django-Easy-API
+
+Join us on Slack:
+https://slack.com/share/IS0A7QFR9/6t9WjjjRnKDv8QnrcT1JaTxi/enQtODg0MzQ3ODMxODU5LTQ2YTU5NzRmYWM4ZDMxYmRkYmUwNjNjMjRmMWVjMmY2YTAzMWFjMGRkZGVkNTcwNjJiZGY1NWZlMDNmNmUyOGM
