@@ -7,9 +7,10 @@ publicapi = EasyAPI('Public API',
                     )
 privateapi = EasyAPI('Private API',
                      permissions.IsAuthenticated,
+                     'API for logged in users'
                      )
 
-complexapi = EasyAPI('Complex API',
-                     permissions.AllowAny,
-                     'API for testing a complicated permissions structure'
+complexapi = EasyAPI('Admin API',
+                     permissions.IsAdminUser,
+                     'API for testing a admin permissions structure'
                      )

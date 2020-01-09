@@ -25,10 +25,10 @@ class EasyAPIMetadata(SimpleMetadata):
 
         def api_metadata(self, request, view, data):
             name = view.get_view_name()
-            perms = [(k, v.__dict__['__doc__']) for k, v in view.perms.items()]
+            permissions = [(str(v), v.__dict__['__doc__']) for v in view.permissions]
             data.update({
                 'name': name,
-                'actions': perms,
+                'permissions': permissions,
             })
             return data
 

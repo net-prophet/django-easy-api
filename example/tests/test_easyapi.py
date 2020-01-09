@@ -21,7 +21,7 @@ SUPER = {
     'password': 'super123'
 }
 
-
+NUM_WIDGETS = 30
 class APIMethodsTest(APITestCase):
     def setUp(self):
         self.client = APIClient()
@@ -30,7 +30,9 @@ class APIMethodsTest(APITestCase):
     def setUpClass(self):
         # Set up the DB
         super(APIMethodsTest, self).setUpClass()
-        for color, size, shape in itertools.product(COLORS, SIZES, SHAPES):
+        for color, size, shape in random.choices(
+                list(itertools.product(COLORS, SIZES, SHAPES)),
+                k=NUM_WIDGETS):
             Widget.objects.create(color=color[0],
                                   size=size[0],
                                   shape=shape[0])
@@ -55,7 +57,7 @@ class APIMethodsTest(APITestCase):
 
     # Import the APIs that we have registered then try to hit their roots
     def test_autodiscover(self):
-        api_names = ['Public API', 'Private API', 'Complex API']
+        api_names = ['Public API', 'Private API', 'Admin API']
         from EasyAPI import all_apis
         for api in all_apis:
             self.assertIn(api.name, api_names)
@@ -68,14 +70,14 @@ class APIMethodsTest(APITestCase):
 
     def test_register_abstract_model(self):
         from django.db import models
-        from EasyAPI import ModelAPI
+        from EasyAPI import ModelResource
 
         class AbstractModel(models.Model):
 
             class Meta:
                 abstract = True
 
-        class AbstractModelAPI(ModelAPI):
+        class AbstractModelAPI(ModelResource):
             pass
 
         from example.app.api import complexapi
@@ -149,7 +151,7 @@ class APIMethodsTest(APITestCase):
         self.client.login(username=TEST['username'],
                           password=TEST['password'])
         widgets = self.client.get('/complexapi/widgets/')
-        self.assertEqual(widgets.status_code, status.HTTP_200_OK)
+        self.assertEqual(widgets.status_code, status.HTTP_403_FORBIDDEN)
 
         create = {'name': 'test_widget',
                   'color': 'blue',
@@ -197,13 +199,13 @@ class APIMethodsTest(APITestCase):
         self.assertEqual(widgets.status_code, status.HTTP_403_FORBIDDEN)
 
         # But lets login and try
-        self.client.login(username=TEST['username'],
-                          password=TEST['password'])
+        self.client.login(username=SUPER['username'],
+                          password=SUPER['password'])
         widgets = self.client.get('/complexapi/widgets/')
         self.assertEqual(widgets.status_code, status.HTTP_200_OK)
 
         # This makes sure we got all of the results
-        self.assertEqual(len(widgets.data), 336)
+        self.assertEqual(len(widgets.data), NUM_WIDGETS)
 
         # Then we randomly pick one to make sure the fields are present
         rand_index = random.randint(0, len(widgets.data) - 1)
@@ -212,33 +214,30 @@ class APIMethodsTest(APITestCase):
         [self.assertIn(field, widgets.data[rand_index])
          for field in widget_fields]
 
-    # Permissions to retrieve widgets are AllowAny
+    # Permissions to retrieve widgets should be denied
     def test_retrieve_widget(self):
-
-        rand_index = random.randint(1, 336)
+        rand_index = random.randint(1, NUM_WIDGETS)
         url = '/complexapi/widgets/%s/'
         widgets = self.client.get(url % str(rand_index))
+        self.assertEqual(widgets.status_code, status.HTTP_403_FORBIDDEN)
+        # But lets login and try
+        self.client.login(username=SUPER['username'],
+                          password=SUPER['password'])
+        widgets = self.client.get(url % str(rand_index))
         self.assertEqual(widgets.status_code, status.HTTP_200_OK)
-
-        pk = widgets.data['pk']
-        self.assertEqual(pk, rand_index)
-        widgets_from_pk = self.client.get(url % str(pk))
-        self.assertEqual(widgets.data, widgets_from_pk.data)
-
-        widget_fields = ['name', 'color', 'size', 'shape', 'cost', 'pk']
-        self.assertEqual(len(widgets.data), len(widget_fields))
-        [self.assertIn(field, widgets.data)
-         for field in widget_fields]
 
     def test_update_widget(self):
-
-        rand_index = random.randint(1, 336)
+        self.client.logout()
+        rand_index = random.randint(1, NUM_WIDGETS)
         url = '/complexapi/widgets/%s/'
-        widgets = self.client.get(url % str(rand_index))
-        self.assertEqual(widgets.status_code, status.HTTP_200_OK)
-
         name = {'name': 'changed_name'}
-        changed = self.client.patch(url % str(widgets.data['pk']), data=name)
+        fail = self.client.patch(url % str(rand_index), data=name)
+        self.assertEqual(fail.status_code, status.HTTP_403_FORBIDDEN)
+        # But lets login and try
+        self.client.login(username=SUPER['username'],
+                          password=SUPER['password'])
+        
+        changed = self.client.patch(url % str(rand_index), data=name)
         self.assertEqual(changed.status_code, status.HTTP_200_OK)
 
         changed_get = self.client.get(url % str(changed.data['pk']))

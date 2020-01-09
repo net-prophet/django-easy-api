@@ -1,26 +1,22 @@
 from .models import Customer
-from EasyAPI import ModelAPI
+from EasyAPI import ModelResource
 from example.app.api import publicapi, privateapi, complexapi
 
 
-class PublicCustomerAPI(ModelAPI):
+class PublicCustomerAPI(ModelResource):
     api_fields = ('name', 'age')
+    class Meta:
+        model = Customer
 
-
-class PrivateCustomerAPI(ModelAPI):
+class PrivateCustomerAPI(ModelResource):
     api_fields = ('name', 'state', 'gender', 'age')
-    create = True
+    class Meta:
+        model = Customer
 
-
-class ComplexCustomerAPI(ModelAPI):
-    from rest_framework import permissions
+class ComplexCustomerAPI(ModelResource):
     api_fields = ('name', 'state', 'gender', 'age')
-    actions = {'create': permissions.IsAdminUser,
-               'edit': permissions.IsAuthenticated,
-               'retrieve': permissions.AllowAny,
-               'list': permissions.IsAuthenticated,
-               'delete': permissions.IsAdminUser,
-               }
+    class Meta:
+        model = Customer
 
 
 publicapi.register(Customer, PublicCustomerAPI)

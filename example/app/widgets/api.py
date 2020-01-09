@@ -1,25 +1,23 @@
 from .models import Widget
-from EasyAPI import ModelAPI
+from EasyAPI.api import ModelResource
 from example.app.api import publicapi, privateapi, complexapi
 
 
-class PublicWidgetAPI(ModelAPI):
+class PublicWidgetAPI(ModelResource):
     api_fields = ('name', 'color')
+    class Meta:
+        model = Widget
 
 
-class PrivateWidgetAPI(ModelAPI):
+class PrivateWidgetAPI(ModelResource):
     api_fields = ('name', 'color', 'size', 'shape', 'cost')
+    class Meta:
+        model = Widget
 
-
-class ComplexWidgetAPI(ModelAPI):
-    from rest_framework import permissions
+class ComplexWidgetAPI(ModelResource):
     api_fields = ('name', 'color', 'size', 'shape', 'cost')
-    actions = {'create': permissions.IsAdminUser,
-               'edit': permissions.IsAuthenticated,
-               'retrieve': permissions.AllowAny,
-               'list': permissions.IsAuthenticated,
-               'delete': permissions.IsAdminUser,
-               }
+    class Meta:
+        model = Widget
 
 
 publicapi.register(Widget, PublicWidgetAPI)

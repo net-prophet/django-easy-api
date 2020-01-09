@@ -11,14 +11,16 @@ from EasyAPI.EasySerializer import classproperty
 class EasyViewSet(viewsets.ModelViewSet):
     metadata_class = EasyAPIMetadata
     filter_backends = (DjangoFilterBackend, OrderingFilter)
+    permissions = None
 
     @classmethod
     def Assemble(cls, **kwargs):
         class AssembledEasyViewSet(cls):
             fields = kwargs['fields']
             model = kwargs['model']
-            actions = kwargs['actions']
+            permissions = kwargs['permissions']
             description = kwargs['description']
+            actions = kwargs.get('actions', {})
         return AssembledEasyViewSet
 
     @classmethod
@@ -147,12 +149,12 @@ class EasyViewSet(viewsets.ModelViewSet):
         resp['Count'] = queryset.count()
         return resp
 
-    def get_permissions(self):
-        permission_classes = []
+    def check_permissions(self, request):
+        permitted = super(EasyViewSet, self).check_permissions(request)
+        return permitted
 
-        try:
-            permission_classes = [self.actions[self.action]]
-        except KeyError as e:
-            print(e)
+    def get_permissions(self):
+        permission_classes = self.permissions + []
+        
 
         return [permission() for permission in permission_classes]
