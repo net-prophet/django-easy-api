@@ -8,4 +8,4 @@ class WidgetAdmin(admin.ModelAdmin):
     list_filter = ('color', 'size', 'shape', 'cost')
 
 
-admin.site.register(Widget, WidgetAdmin)
+#admin.site.register(Widget, WidgetAdmin)

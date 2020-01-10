@@ -96,14 +96,6 @@ class APIMethodsTest(APITestCase):
         with self.assertRaises(ImproperlyConfigured):
             complexapi.register(NotAModelAPI)
 
-    def test_register_model_twice(self):
-        from example.app.widgets.models import Widget
-        from example.app.api import complexapi
-        from example.app.widgets.api import ComplexWidgetAPI
-        from EasyAPI import AlreadyRegistered
-        with self.assertRaises(AlreadyRegistered):
-            complexapi.register(ComplexWidgetAPI)
-
     @modify_settings(INSTALLED_APPS={'remove': ['EasyAPI']})
     def test_checking_easyapi_installed(self):
         from django.apps import apps
@@ -156,7 +148,8 @@ class APIMethodsTest(APITestCase):
         create = {'name': 'test_widget',
                   'color': 'blue',
                   'size': 'large',
-                  'shape': 'circle'}
+                  'shape': 'circle'
+                }
         response = self.client.post('/complexapi/widgets/', data=create)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -209,7 +202,7 @@ class APIMethodsTest(APITestCase):
 
         # Then we randomly pick one to make sure the fields are present
         rand_index = random.randint(0, len(widgets.data) - 1)
-        widget_fields = ['name', 'color', 'size', 'shape', 'cost', 'pk']
+        widget_fields = ['name', 'color', 'size', 'shape', 'cost', 'pk', 'items']
         self.assertEqual(len(widgets.data[rand_index]), len(widget_fields))
         [self.assertIn(field, widgets.data[rand_index])
          for field in widget_fields]

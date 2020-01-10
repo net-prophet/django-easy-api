@@ -157,7 +157,6 @@ class PrivateAPITest(APITestCase):
                           password=TEST['password'])
         purchases = self.client.get('/privateapi/purchases/')
         self.assertEqual(purchases.status_code, status.HTTP_200_OK)
-
         self.assertEqual(len(purchases.data), 200)
         rand_index = random.randint(0, len(purchases.data) - 1)
         purchase_fields = ['sale_date', 'sale_price', 'profit',

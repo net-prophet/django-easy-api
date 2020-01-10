@@ -1,3 +1,4 @@
+from django.db.models.fields.reverse_related import ForeignObjectRel
 from rest_framework import serializers
 
 
@@ -11,13 +12,13 @@ class classproperty(object):
 
 class EasySerializable(object):
     @classmethod
-    def get_base_serializer_class(cls, the_model, the_fields):
-        the_fields = [f for f in list(the_fields) + ['pk',] if f != 'id']
-
+    def get_base_serializer_class(cls, resource):
+        ALL = resource.get_serializer_fields()
+        RO = resource.get_read_only_fields()
         class EasyBaseSerializer(serializers.ModelSerializer):
-
             class Meta:
-                model = the_model
-                fields = the_fields
+                model = resource.model
+                fields = ALL
+                read_only_fields = RO
 
         return EasyBaseSerializer

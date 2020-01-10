@@ -1,9 +1,9 @@
 from django.contrib import admin
-from .models import Purchase
+from .models import Purchase, PurchaseItem
 
 
 class WidgetInLine(admin.TabularInline):
-    model = Purchase.items.through
+    model = PurchaseItem
 
 
 class PurchaseAdmin(admin.ModelAdmin):
@@ -13,4 +13,4 @@ class PurchaseAdmin(admin.ModelAdmin):
     inlines = [WidgetInLine]
 
 
-admin.site.register(Purchase, PurchaseAdmin)
+#admin.site.register(Purchase, PurchaseAdmin)

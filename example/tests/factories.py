@@ -5,7 +5,7 @@ import datetime as dt
 import factory.fuzzy as fuz
 from example.app.widgets.models import Widget
 from example.app.customers.models import Customer
-from example.app.purchases.models import Purchase
+from example.app.purchases.models import Purchase, PurchaseItem
 from example.app.customers.options import GENDERS, STATES
 
 
@@ -32,5 +32,5 @@ class PurchaseFactory(factory.django.DjangoModelFactory):
         purchased = Widget.objects.all().order_by('?')[:amt_purchased]
 
         if create and purchased:
-            for item in purchased:
-                self.items.add(item)
+            for widget in purchased:
+                self.add_item(widget)

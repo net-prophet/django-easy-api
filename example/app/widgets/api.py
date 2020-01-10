@@ -8,22 +8,6 @@ from example.app.api import publicapi, privateapi, complexapi
 #  | Customers: Read Store Owner
 #    | Purchases: Read Store Owner
 
-class PublicWidgetAPI(ModelResource):
-    api_fields = ('name', 'color')
-    class Meta:
-        model = Widget
-
-class PrivateWidgetAPI(ModelResource):
-    api_fields = ('name', 'color', 'size', 'shape', 'cost')
-    class Meta:
-        model = Widget
-
-class ComplexWidgetAPI(ModelResource):
-    api_fields = ('name', 'color', 'size', 'shape', 'cost')
-    class Meta:
-        model = Widget
-
-
 publicapi.register(Widget, fields=['name', 'color'])
 privateapi.register(Widget, fields=['name', 'color', 'size', 'shape', 'cost'])
 complexapi.register(Widget)

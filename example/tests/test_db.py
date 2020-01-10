@@ -1,9 +1,10 @@
 import datetime
+
 from django.test import TestCase
 
-from example.app.widgets.models import Widget
 from example.app.customers.models import Customer
-from example.app.purchases.models import Purchase
+from example.app.purchases.models import Purchase, PurchaseItem
+from example.app.widgets.models import Widget
 
 
 class WidgetTests(TestCase):
@@ -83,8 +84,8 @@ class PurchaseTests(TestCase):
                                        age='29')
         purch1 = Purchase(customer=cust)
         purch1.save()
-        purch1.items.add(widg1)
-        purch1.items.add(widg2)
+        purch1.add_item(widg1)
+        purch1.add_item(widg2)
         purch1.save()
 
     def test_customer_methods(self):
@@ -99,14 +100,14 @@ class PurchaseTests(TestCase):
 
     def test_items_added(self):
         purch1 = Purchase.objects.first()
-        self.assertQuerysetEqual(purch1.get_items(),
-                                 Widget.objects.all(),
+        self.assertQuerysetEqual(purch1.items.all(),
+                                 PurchaseItem.objects.all(),
                                  transform=lambda x: x,
                                  ordered=False)
 
     def test_get_customer(self):
         purch1 = Purchase.objects.first()
-        self.assertIsInstance(purch1.get_customer(), Customer)
+        self.assertIsInstance(purch1.customer, Customer)
 
     def test_correct_cost(self):
         purch1 = Purchase.objects.first()
@@ -118,24 +119,24 @@ class PurchaseTests(TestCase):
 
     def test_item_count(self):
         purch1 = Purchase.objects.first()
-        self.assertEqual(purch1.get_item_count(), Widget.objects.all().count())
+        self.assertEqual(purch1.items.count(), Widget.objects.all().count())
 
     def test_sale_date(self):
         purch1 = Purchase.objects.first()
-        self.assertEqual(purch1.get_sale_date().date(),
+        self.assertEqual(purch1.sale_date.date(),
                          datetime.datetime.now().date())
 
     def test_sale_price_profit(self):
         purch1 = Purchase.objects.first()
-        pur_sale_price = purch1.get_sale_price()
+        pur_sale_price = purch1.sale_price
 
         widg1 = Widget.objects.get(name='testwidget')
         widg2 = Widget.objects.get(name='dummywidget')
         widg_cost = widg1.get_cost() + widg2.get_cost()
 
-        widg_sale_price = round(widg_cost * 1.1, 2)
+        widg_sale_price = round(widg_cost * 1.5, 2)
         self.assertEqual(pur_sale_price, widg_sale_price)
 
-        pur_profit = purch1.get_profit()
-        widg_profit = round(widg_cost * 0.1, 2)
+        pur_profit = purch1.profit
+        widg_profit = round(widg_cost * 0.5, 2)
         self.assertEqual(pur_profit, widg_profit)

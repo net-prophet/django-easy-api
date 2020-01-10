@@ -18,6 +18,7 @@ class EasyViewSet(viewsets.ModelViewSet):
         class AssembledEasyViewSet(cls):
             fields = kwargs['fields']
             model = kwargs['model']
+            resource = kwargs['resource']
             permissions = kwargs['permissions']
             description = kwargs['description']
             actions = kwargs.get('actions', {})
@@ -29,8 +30,7 @@ class EasyViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         from EasyAPI.EasySerializer import EasySerializable
-        return EasySerializable.get_base_serializer_class(self.model,
-                                                          self.fields)
+        return EasySerializable.get_base_serializer_class(self.resource)
 
     def get_queryset(self):
         return self.model.objects.all()
@@ -128,7 +128,6 @@ class EasyViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-
         as_csv = request.GET.get('format') == 'csv'
         all_rows = request.GET.get('all_rows') == 'true'
 

@@ -12,5 +12,6 @@ privateapi = EasyAPI('PrivateAPI',
 
 complexapi = EasyAPI('AdminAPI',
                      permissions.IsAdminUser,
-                     'API for testing a admin permissions structure'
+                     'API for testing a admin permissions structure',
+                     admin=True
                      )

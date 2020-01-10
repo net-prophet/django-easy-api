@@ -14,4 +14,4 @@ class CustomerAdmin(admin.ModelAdmin):
     inlines = [PurchaseInLine]
 
 
-admin.site.register(Customer, CustomerAdmin)
+#admin.site.register(Customer, CustomerAdmin)
