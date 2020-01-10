@@ -21,3 +21,4 @@ website/node_modules
 website/i18n/*
 *.egg-info
 build
+.vscode

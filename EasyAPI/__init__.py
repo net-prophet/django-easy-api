@@ -1,5 +1,7 @@
-from .api import EasyAPI, ModelResource, check_dependencies, AlreadyRegistered, all_apis
-__all__ = ['autodiscover', 'EasyAPI', 'ModelAPI', 'check_dependencies', 'AlreadyRegistered', 'all_apis']
+from .api import EasyAPI, check_dependencies, AlreadyRegistered, all_apis
+from .resource import ModelResource
+
+__all__ = ['autodiscover']
 
 
 def autodiscover():

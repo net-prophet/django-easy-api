@@ -19,6 +19,6 @@ class ComplexCustomerAPI(ModelResource):
         model = Customer
 
 
-publicapi.register(Customer, PublicCustomerAPI)
-privateapi.register(Customer, PrivateCustomerAPI)
-complexapi.register(Customer, ComplexCustomerAPI)
+publicapi.register(Customer, fields=['name', 'age'])
+privateapi.register(Customer, fields=['name', 'state', 'gender', 'age'])
+complexapi.register(Customer)

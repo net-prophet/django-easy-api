@@ -48,7 +48,7 @@ class PublicAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         self.assertIn('name', response.data)
-        self.assertEqual(response.data['name'], 'Public API')
+        self.assertEqual(response.data['name'], 'PublicAPI')
         self.assertIn('description', response.data)
         description = 'This is a public API'
         self.assertEqual(response.data['description'], description)
@@ -67,7 +67,7 @@ class PublicAPITest(APITestCase):
 
         # Test that None has_permission is False (always returns False)
         # This is PURELY to get to 100% test coverage, it's a dumb test
-        from EasyAPI.api import AllowNone
+        from EasyAPI.resource import AllowNone
         self.assertFalse(AllowNone.has_permission(None, None, None))
 
     def test_public_get_widget(self):

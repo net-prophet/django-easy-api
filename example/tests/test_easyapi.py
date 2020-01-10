@@ -57,7 +57,7 @@ class APIMethodsTest(APITestCase):
 
     # Import the APIs that we have registered then try to hit their roots
     def test_autodiscover(self):
-        api_names = ['Public API', 'Private API', 'Admin API']
+        api_names = ['PublicAPI', 'PrivateAPI', 'AdminAPI']
         from EasyAPI import all_apis
         for api in all_apis:
             self.assertIn(api.name, api_names)
@@ -83,7 +83,7 @@ class APIMethodsTest(APITestCase):
         from example.app.api import complexapi
         from django.core.exceptions import ImproperlyConfigured
         with self.assertRaises(ImproperlyConfigured):
-            complexapi.register(AbstractModel, AbstractModelAPI)
+            complexapi.register(AbstractModelAPI)
 
     def test_register_object_not_modelapi_subclass(self):
 
@@ -94,7 +94,7 @@ class APIMethodsTest(APITestCase):
         from example.app.api import complexapi
         from django.core.exceptions import ImproperlyConfigured
         with self.assertRaises(ImproperlyConfigured):
-            complexapi.register(Widget, NotAModelAPI)
+            complexapi.register(NotAModelAPI)
 
     def test_register_model_twice(self):
         from example.app.widgets.models import Widget
@@ -102,7 +102,7 @@ class APIMethodsTest(APITestCase):
         from example.app.widgets.api import ComplexWidgetAPI
         from EasyAPI import AlreadyRegistered
         with self.assertRaises(AlreadyRegistered):
-            complexapi.register(Widget, ComplexWidgetAPI)
+            complexapi.register(ComplexWidgetAPI)
 
     @modify_settings(INSTALLED_APPS={'remove': ['EasyAPI']})
     def test_checking_easyapi_installed(self):
