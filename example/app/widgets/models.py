@@ -1,6 +1,7 @@
 from django.db import models
-from .options import COLORS, SIZES, SHAPES
 
+from .options import COLORS, SIZES, SHAPES, GENDERS, STATES
+import django.utils.timezone
 
 class Widget(models.Model):
     name = models.CharField(max_length=30, blank=True)
@@ -9,21 +10,6 @@ class Widget(models.Model):
     shape = models.CharField(choices=SHAPES, max_length=30)
     cost = models.FloatField(default=0,
                              blank=True)
-
-    def get_name(self):
-        return self.name
-
-    def get_color(self):
-        return self.color
-
-    def get_size(self):
-        return self.size
-
-    def get_shape(self):
-        return self.shape
-
-    def get_cost(self):
-        return self.cost
 
     def save(self, *args, **kwargs):
         if self.name == '':
@@ -37,3 +23,57 @@ class Widget(models.Model):
 
     def __str__(self):
         return self.name
+
+class Customer(models.Model):
+    name = models.CharField(max_length=30, blank=True)
+    state = models.CharField(max_length=30, blank=True)
+    gender = models.CharField(max_length=1, blank=True)
+    age = models.IntegerField(blank=True)
+
+    def get_purchases(self):
+        return Purchase.objects.all().filter(customer=self)
+
+    def get_name(self):
+        return self.name
+
+    def get_state(self):
+        return self.state
+
+    def get_gender(self):
+        return self.gender
+
+    def get_age(self):
+        return self.age
+
+class Purchase(models.Model):
+    sale_date = models.DateTimeField(default=django.utils.timezone.now)
+    sale_price = models.FloatField(default=0, blank=True)
+    profit = models.FloatField(default=0, blank=True)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="purchases")
+
+    def get_cost(self):
+        costs = [item.widget.cost for item in self.items.all()]
+        return round(sum(costs), 2)
+
+    def add_item(self, widget):
+        return self.items.create(widget=widget)
+
+
+    def set_sale_price(self):
+        cost_plus_profit = 1.5
+        cost = self.get_cost()
+        self.sale_price = round(cost*cost_plus_profit, 2)
+
+    def set_profit(self):
+        profit_margin = 0.5
+        cost = self.get_cost()
+        self.profit = round(cost*profit_margin, 2)
+
+    def save(self, *args, **kwargs):
+        self.set_sale_price()
+        self.set_profit()
+        super(Purchase, self).save(*args, **kwargs)
+
+class PurchaseItem(models.Model):
+    purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE, related_name='items')
+    widget = models.ForeignKey('widgets.Widget', on_delete=models.CASCADE, related_name='items')

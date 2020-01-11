@@ -26,8 +26,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'example.app.widgets',
-    'example.app.purchases',
-    'example.app.customers',
     'EasyAPI',
     'rest_framework',
     'graphene_django',

@@ -79,8 +79,7 @@ class EasyAPI(object):
 
         api = api_resource(self)
         model = api_resource.Meta.model
-        print('REGISTER MODEL', model)
-
+        
         if model._meta.abstract:
             raise ImproperlyConfigured(
                 "The model %s is abstract, so it cannot "
@@ -136,7 +135,7 @@ class EasyAPI(object):
             router.register(
                 r"%s" % resource.label, viewset, "%s %s" % (name, resource.label),
             )
-            
+
             objectType, query = resource.generate_graphql()
             queries.append(query)
 

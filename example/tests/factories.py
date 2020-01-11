@@ -3,10 +3,8 @@ import random
 import factory
 import datetime as dt
 import factory.fuzzy as fuz
-from example.app.widgets.models import Widget
-from example.app.customers.models import Customer
-from example.app.purchases.models import Purchase, PurchaseItem
-from example.app.customers.options import GENDERS, STATES
+from example.app.widgets.models import Widget, Customer, Purchase, PurchaseItem
+from example.app.widgets.options import GENDERS, STATES
 
 
 class CustomerFactory(factory.django.DjangoModelFactory):

@@ -22,6 +22,7 @@ class EasyViewSet(viewsets.ModelViewSet):
             permissions = kwargs['permissions']
             description = kwargs['description']
             actions = kwargs.get('actions', {})
+            filterset_class = kwargs['resource'].get_filterset_class()
         return AssembledEasyViewSet
 
     @classmethod
@@ -35,18 +36,9 @@ class EasyViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return self.model.objects.all()
 
-    @classproperty
-    def filters(cls):
-        return cls.get_filter_class().get_filters()
-
     @property
-    def filterset_class(cls):
-        return cls.get_filter_class()
-
-    @classmethod
-    def get_filter_class(cls):
-        from EasyAPI.EasyFilters import EasyFilters
-        return EasyFilters.get_filter_class(cls.model, list(cls.fields))
+    def filters(self):
+        return self.resource.get_filters()
 
     @classmethod
     def view_save_data(cls, view, request):

@@ -1,11 +1,7 @@
 import datetime
 
 from django.test import TestCase
-
-from example.app.customers.models import Customer
-from example.app.purchases.models import Purchase, PurchaseItem
-from example.app.widgets.models import Widget
-
+from example.app.widgets.models import Widget, Customer, Purchase, PurchaseItem
 
 class WidgetTests(TestCase):
 
@@ -23,27 +19,27 @@ class WidgetTests(TestCase):
 
     def test_get_name(self):
         obj = Widget.objects.get(name='testwidget')
-        self.assertEqual(obj.get_name(), 'testwidget')
+        self.assertEqual(obj.name, 'testwidget')
         self.assertEqual(str(obj), 'testwidget')
 
     def test_get_color(self):
         obj = Widget.objects.get(name='testwidget')
-        self.assertEqual(obj.get_color(), 'Black')
+        self.assertEqual(obj.color, 'Black')
 
     def test_get_size(self):
         obj = Widget.objects.get(name='testwidget')
-        self.assertEqual(obj.get_size(), 'Small')
+        self.assertEqual(obj.size, 'Small')
 
     def test_get_shape(self):
         obj = Widget.objects.get(name='testwidget')
-        self.assertEqual(obj.get_shape(), 'Rectangle')
+        self.assertEqual(obj.shape, 'Rectangle')
 
     def test_all(self):
         obj = Widget.objects.get(name='testwidget')
-        self.assertEqual(obj.get_name(), 'testwidget')
-        self.assertEqual(obj.get_color(), 'Black')
-        self.assertEqual(obj.get_size(), 'Small')
-        self.assertEqual(obj.get_shape(), 'Rectangle')
+        self.assertEqual(obj.name, 'testwidget')
+        self.assertEqual(obj.color, 'Black')
+        self.assertEqual(obj.size, 'Small')
+        self.assertEqual(obj.shape, 'Rectangle')
 
     def test_create_new(self):
         obj = Widget.objects.create(name='otherwidget',
@@ -53,16 +49,16 @@ class WidgetTests(TestCase):
         obj.save()
 
         other = Widget.objects.get(name='otherwidget')
-        self.assertEqual(other.get_name(), 'otherwidget')
-        self.assertEqual(other.get_color(), 'Red')
-        self.assertEqual(other.get_size(), 'Large')
-        self.assertEqual(other.get_shape(), 'Triangle')
+        self.assertEqual(other.name, 'otherwidget')
+        self.assertEqual(other.color, 'Red')
+        self.assertEqual(other.size, 'Large')
+        self.assertEqual(other.shape, 'Triangle')
 
         obj2 = Widget.objects.create(color='Red',
                                      size='Large',
                                      shape='Triangle')
 
-        self.assertEqual(obj2.get_name(), 'Red.Large.Triangle')
+        self.assertEqual(obj2.name, 'Red.Large.Triangle')
 
 
 class PurchaseTests(TestCase):
@@ -93,10 +89,10 @@ class PurchaseTests(TestCase):
         pur = Purchase.objects.first()
         self.assertEqual(cust.get_purchases().first(), pur)
 
-        self.assertEqual(cust.get_name(), 'testcust')
-        self.assertEqual(cust.get_state(), 'Florida')
-        self.assertEqual(cust.get_gender(), 'M')
-        self.assertEqual(cust.get_age(), 29)
+        self.assertEqual(cust.name, 'testcust')
+        self.assertEqual(cust.state, 'Florida')
+        self.assertEqual(cust.gender, 'M')
+        self.assertEqual(cust.age, 29)
 
     def test_items_added(self):
         purch1 = Purchase.objects.first()
@@ -114,7 +110,7 @@ class PurchaseTests(TestCase):
         widg1 = Widget.objects.get(name='testwidget')
         widg2 = Widget.objects.get(name='dummywidget')
         pur_cost = purch1.get_cost()
-        widg_cost = widg1.get_cost() + widg2.get_cost()
+        widg_cost = widg1.cost + widg2.cost
         self.assertEqual(pur_cost, widg_cost)
 
     def test_item_count(self):
@@ -132,7 +128,7 @@ class PurchaseTests(TestCase):
 
         widg1 = Widget.objects.get(name='testwidget')
         widg2 = Widget.objects.get(name='dummywidget')
-        widg_cost = widg1.get_cost() + widg2.get_cost()
+        widg_cost = widg1.cost + widg2.cost
 
         widg_sale_price = round(widg_cost * 1.5, 2)
         self.assertEqual(pur_sale_price, widg_sale_price)
