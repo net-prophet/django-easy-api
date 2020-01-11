@@ -1,4 +1,4 @@
-from .models import Widget, Purchase, Customer
+from .models import Widget, Purchase, Customer, Store
 from EasyAPI.resource import ModelResource
 from example.app.api import publicapi, privateapi, complexapi
 
@@ -19,3 +19,6 @@ complexapi.register(Purchase, inlines=['items'])
 publicapi.register(Customer, fields=['name', 'age'])
 privateapi.register(Customer, fields=['name', 'state', 'gender', 'age'])
 complexapi.register(Customer)
+
+privateapi.register(Store, inlines=['widgets'])
+complexapi.register(Store, inlines=['widgets'])

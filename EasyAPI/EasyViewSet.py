@@ -22,7 +22,7 @@ class EasyViewSet(viewsets.ModelViewSet):
             permissions = kwargs['permissions']
             description = kwargs['description']
             actions = kwargs.get('actions', {})
-            filterset_class = kwargs['resource'].get_filterset_class()
+            filterset_class = kwargs['resource'].filterset_class
         return AssembledEasyViewSet
 
     @classmethod

@@ -13,6 +13,7 @@ from graphene_django.views import GraphQLView
 from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.routers import APIRootView, DefaultRouter
 
+from EasyAPI.EasyFilters import EasyFilters
 from EasyAPI.metadata import EasyAPIMetadata
 
 
@@ -54,17 +55,49 @@ class ModelResource(object):
         filterset_class=None,
         graphql_query=None,
     ):
+        # Part 1: Set attributes
         self.api = api
         self.permissions = permissions or self.permissions
         self.viewset_class = viewset_class or self.viewset_class
-        self.filterset_class = filterset_class or self.filterset_class
-        self.graphql_query = graphql_query or self.graphql_query
+
+
+        # Step 2: Fields
         self.fields = list(fields or self.fields or self.model_fields.keys())
-        self.read_only = read_only or self.read_only
-        self.list_display = list(
-            list_display or self.list_display or self.model_fields_local.keys()
+
+        self.relations = self.get_fields(
+            lambda field: isinstance(field, related.ForeignObject)
         )
+        self.reverse_relations = self.get_fields(
+            lambda field: isinstance(field, reverse_related.ForeignObjectRel)
+        )
+                
+        self.read_only = ["pk",] + (read_only or self.read_only or self.relations)
+
+        self.list_display = list(
+            list_display or self.list_display or self.fields
+        )
+
+        # Part 3: Complex setups
         self.inlines = inlines or self.inlines
+        
+        self.filterset_class = (
+            filterset_class or self.filterset_class or EasyFilters.Assemble(self)
+        )
+        self.graphql_query = graphql_query or self.graphql_query
+        
+        self.filterset = self.filterset_class()
+        self.__dump_info__()
+
+    def __dump_info__(self):
+        print("API Resource: ", self)
+        print("\tAPI:        ", self.api)
+        print("\tModel:      ", self.model)
+        print("\tFields:     ", self.fields)
+        print("\tReadOnly:   ", self.read_only)
+        print("\tListDisplay:", self.list_display)
+        print("\tInlines:    ", self.inlines)
+        print("\tRelations:  ", self.relations)
+        print("\tReversRels: ", self.reverse_relations)
 
     @classmethod
     def generate_for_model(cls, _model, **kwargs):
@@ -96,55 +129,15 @@ class ModelResource(object):
             [(f.name, f) for f in self.model._meta.get_fields()]
         )
 
-    @property
-    def model_fields_local(self):
-        return collections.OrderedDict(
-            [
-                (k, v)
-                for k, v in self.model_fields.items()
-                if not isinstance(v, reverse_related.ForeignObjectRel)
-            ]
-        )
-
     def get_inline_model(self, name):
         return self.model_fields[name].related_model
 
-    def get_filterset_class(self):
-        from EasyAPI.EasyFilters import EasyFilters
-
-        if not self.filterset_class:
-            self.filterset_class = EasyFilters.Assemble(self)
-        return self.filterset_class
-
-    def get_filterset(self):
-        FilterSet = self.get_filterset_class()
-        return FilterSet()
-
-    def get_filter_fields(self):
-        return self.get_filterset().filter_fields
-
-    def get_filters(self):
-        return self.get_filterset().get_filters()
-
-    def get_serializer_fields(self, exclude=None):
+    def get_fields(self, match=None):
         return [
             f
             for f in list(self.fields)
-            if f is not "id" and f in self.model_fields and f not in (exclude or [])
-        ] + ["pk"]
-
-    def get_foreign_key_fields(self):
-        return [
-            f for f in list(self.fields)
-            if f in self.model_fields
-            and isinstance(self.model_fields[f], reverse_related.ForeignObjectRel)
+            if f in self.model_fields and (not match or match(self.model_fields[f]))
         ]
-
-    def get_read_only_fields(self):
-        return ["pk",] + (
-            self.read_only
-            or self.get_foreign_key_fields()
-        )
 
     def generate_viewset(self):
         from .EasyViewSet import EasyViewSet
@@ -160,8 +153,7 @@ class ModelResource(object):
     @property
     def gql_fields(self):
         fields = {
-            field: get_gql_type(self.model_fields, field)
-            for field in self.fields + self.get_read_only_fields()
+            field: get_gql_type(self.model_fields, field) for field in self.fields
         }
 
         return {k: v for k, v in fields.items() if v}
@@ -176,7 +168,7 @@ class ModelResource(object):
             model = self.model
             name = self.model._meta.object_name
             fields = list(self.gql_fields.keys())
-            filter_fields = self.get_filter_fields()
+            filter_fields = self.filterset.filter_fields
             interfaces = (graphene.relay.Node,)
 
         EasyObjectType = type(Meta.name, (DjangoObjectType,), {"Meta": Meta})
@@ -212,28 +204,10 @@ class ModelResource(object):
         GeneratedAdmin = type(
             "%sGeneratedAdmin" % self.model._meta.object_name,
             (admin_class,),
-            {"model": self.model},
+            {"model": self.model,
+             "list_display": self.list_display
+            },
         )
-
-        if not self.list_display:
-            list_display = []
-            DEFAULT_FIELDS = [
-                "created_at",
-                "modified_at",
-                "status",
-                "order",
-                "level",
-                "parent",
-                "title",
-                "name",
-            ]
-            for field in DEFAULT_FIELDS:
-                if hasattr(modelKlass, field):
-                    list_display.append(field)
-        else:
-            list_display = self.list_display
-
-        setattr(GeneratedAdmin, "list_display", list_display)
 
         if self.inlines and not getattr(GeneratedAdmin, "inlines"):
             setattr(

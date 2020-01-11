@@ -177,6 +177,7 @@ class PrivateAPITest(APITestCase):
         self.assertEqual(len(customers.data), 200)
         rand_index = random.randint(0, len(customers.data) - 1)
         customer_fields = ['name', 'state', 'gender', 'age', 'pk']
+        print(customers.data[rand_index])
 
         self.assertEqual(len(customers.data[rand_index]), len(customer_fields))
         [self.assertIn(field, customers.data[rand_index])

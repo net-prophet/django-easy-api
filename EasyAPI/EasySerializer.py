@@ -13,8 +13,9 @@ class classproperty(object):
 class EasySerializable(object):
     @classmethod
     def get_base_serializer_class(cls, resource):
-        ALL = resource.get_serializer_fields()
-        RO = resource.get_read_only_fields()
+        fields = ['pk',] + [f for f in resource.fields if f not in ['id', 'pk']]
+        ALL = fields
+        RO = resource.read_only
         class EasyBaseSerializer(serializers.ModelSerializer):
             class Meta:
                 model = resource.model

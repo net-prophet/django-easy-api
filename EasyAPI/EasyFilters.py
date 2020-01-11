@@ -49,23 +49,29 @@ def map_filter_fields(resource, fields):
             rng = name + '_range'
             filters[rng] = django_filters.DateRangeFilter(field_name=name)
 
-    for relation in resource.inlines:
+    subfilters, subfilter_fields = {}, {}
+
+    for relation in resource.reverse_relations:
         model = resource.get_inline_model(relation)
         registered = resource.api._registry.get(model, None)
         if not registered: continue
-        label = relation
-        subfilterset = registered.get_filterset()
-        for name, field in subfilterset.filters.items():
-            filters["%s__%s"%(label, name)] = field
+        subfilterset = registered.filterset
+        for name, _filter in subfilterset.local_filters.items():
+            subfilters["%s__%s"%(relation, name)] = _filter
+        for name, fields in subfilterset.local_filter_fields.items():
+            subfilter_fields["%s__%s"%(relation, name)] = fields
+            
     
-    for relation in resource.get_foreign_key_fields():
+    for relation in resource.relations:
         fk = resource.model_fields[relation]
         registered = resource.api._registry.get(fk.related_model, None)
         if not registered: continue
-        subfilterset = registered.get_filterset()
-        for name, field in subfilterset.filters.items():
-            filters["%s__%s"%(relation, name)] = field
-    return filter_fields, filters
+        subfilterset = registered.filterset
+        for name, _filter in subfilterset.local_filters.items():
+            subfilters["%s__%s"%(relation, name)] = _filter
+        for name, fields in subfilterset.local_filter_fields.items():
+            subfilter_fields["%s__%s"%(relation, name)] = fields
+    return filter_fields, filters, subfilter_fields, subfilters
 
 
 class EasyFilters(object):
@@ -75,10 +81,17 @@ class EasyFilters(object):
         class GenericBaseFilters(django_filters.FilterSet):
             filter_fields = {}
             local_filter_fields = {}
+            sub_filter_fields = {}
+            local_filters = {}
+            sub_filters = {}
             def __init__(self, *args, **kwargs):
                 super(GenericBaseFilters, self).__init__(*args, **kwargs)
-                _fields, _filters = map_filter_fields(resource, the_fields)
-                self.local_filter_fields = self.filter_fields = _fields
+                _fields, _filters, _subfields, _subfilters = map_filter_fields(resource, the_fields)
+                self.local_filter_fields = _fields
+                self.sub_filter_fields = _subfields
+                self.filter_fields = dict(**_fields, **_subfields)
+                self.local_filters = _filters
+                self.sub_filters = _subfilters
                 self.filters.update(_filters)
 
             class Meta:

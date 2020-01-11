@@ -3,7 +3,25 @@ from django.db import models
 from .options import COLORS, SIZES, SHAPES, GENDERS, STATES
 import django.utils.timezone
 
+class Store(models.Model):
+    name = models.CharField(max_length=30, blank=True)
+    owner = models.ForeignKey('auth.User', on_delete=models.CASCADE)
+
+    @classmethod
+    def DEFAULT(cls):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        if not User.objects.count():
+            User.objects.create(username='default_user')
+
+        return cls.objects.get_or_create(name='DEFAULT',
+                owner=User.objects.first())[0]
+
+def default_store_id():
+    return Store.DEFAULT().id
+    
 class Widget(models.Model):
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, default=default_store_id, related_name='widgets')
     name = models.CharField(max_length=30, blank=True)
     color = models.CharField(choices=COLORS, max_length=30)
     size = models.CharField(choices=SIZES, max_length=30)
