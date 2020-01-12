@@ -3,7 +3,9 @@ from rest_framework import permissions
 
 publicapi = EasyAPI('PublicAPI',
                     permissions.AllowAny,
-                    'This is a public API'
+                    'This is a public API',
+                    rest=True,
+                    graphql=True
                     )
 privateapi = EasyAPI('PrivateAPI',
                      permissions.IsAuthenticated,

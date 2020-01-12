@@ -88,7 +88,7 @@ class PublicAPITest(APITestCase):
 
         self.assertEqual(len(purchases.data), 200)
         rand_index = random.randint(0, len(purchases.data) - 1)
-        purchase_fields = ['items', 'sale_price', 'pk']
+        purchase_fields = ['sale_price', 'pk']
 
         self.assertEqual(len(purchases.data[rand_index]), len(purchase_fields))
         [self.assertIn(field, purchases.data[rand_index])
@@ -160,7 +160,7 @@ class PrivateAPITest(APITestCase):
         self.assertEqual(len(purchases.data), 200)
         rand_index = random.randint(0, len(purchases.data) - 1)
         purchase_fields = ['sale_date', 'sale_price', 'profit',
-                           'customer', 'items', 'pk']
+                           'customer', 'pk']
 
         self.assertEqual(len(purchases.data[rand_index]), len(purchase_fields))
         [self.assertIn(field, purchases.data[rand_index])
@@ -177,7 +177,6 @@ class PrivateAPITest(APITestCase):
         self.assertEqual(len(customers.data), 200)
         rand_index = random.randint(0, len(customers.data) - 1)
         customer_fields = ['name', 'state', 'gender', 'age', 'pk']
-        print(customers.data[rand_index])
 
         self.assertEqual(len(customers.data[rand_index]), len(customer_fields))
         [self.assertIn(field, customers.data[rand_index])

@@ -8,13 +8,15 @@ from django.contrib import admin
 from django.db import models
 from django.db.models.base import ModelBase
 from django.db.models.fields import related, reverse_related
+from graphene_django.filter.fields import DjangoFilterConnectionField
 from graphene_django.types import DjangoObjectType
 from graphene_django.views import GraphQLView
 from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.routers import APIRootView, DefaultRouter
 
-from EasyAPI.EasyFilters import EasyFilters
+from EasyAPI.filters import EasyFilters
 from EasyAPI.metadata import EasyAPIMetadata
+from EasyAPI.serializers import EasySerializable
 
 
 def get_gql_type(fields, field):
@@ -23,6 +25,9 @@ def get_gql_type(fields, field):
 
     if field not in fields:
         return None
+
+    if field is 'id':
+        return graphene.ID
     return convert_django_field(fields[field])
 
 
@@ -37,7 +42,7 @@ class ModelResource(object):
     model = None
     viewset_class = None
     filterset_class = None
-    graphql_query = None
+    serializer_class = None
     fields = []
     read_only = []
     list_display = []
@@ -53,16 +58,17 @@ class ModelResource(object):
         inlines=None,
         viewset_class=None,
         filterset_class=None,
-        graphql_query=None,
+        serializer_class=None,
     ):
         # Part 1: Set attributes
         self.api = api
         self.permissions = permissions or self.permissions
         self.viewset_class = viewset_class or self.viewset_class
 
-
         # Step 2: Fields
-        self.fields = list(fields or self.fields or self.model_fields.keys())
+        self.fields = list(f for f in 
+            fields or self.fields or self.model_fields.keys()
+            if f != 'id')
 
         self.relations = self.get_fields(
             lambda field: isinstance(field, related.ForeignObject)
@@ -70,23 +76,22 @@ class ModelResource(object):
         self.reverse_relations = self.get_fields(
             lambda field: isinstance(field, reverse_related.ForeignObjectRel)
         )
-                
+
         self.read_only = ["pk",] + (read_only or self.read_only or self.relations)
 
-        self.list_display = list(
-            list_display or self.list_display or self.fields
-        )
+        self.list_display = ["pk", ] + list(list_display or self.list_display or self.fields)
 
         # Part 3: Complex setups
         self.inlines = inlines or self.inlines
-        
+
         self.filterset_class = (
             filterset_class or self.filterset_class or EasyFilters.Assemble(self)
         )
-        self.graphql_query = graphql_query or self.graphql_query
-        
+        self.serializer_class = (
+            serializer_class or self.serializer_class or EasySerializable.Assemble(self)
+        )
+
         self.filterset = self.filterset_class()
-        self.__dump_info__()
 
     def __dump_info__(self):
         print("API Resource: ", self)
@@ -139,8 +144,13 @@ class ModelResource(object):
             if f in self.model_fields and (not match or match(self.model_fields[f]))
         ]
 
+    def get_serializer_class(self):
+        from EasyAPI.serializers import EasySerializable
+
+        return
+
     def generate_viewset(self):
-        from .EasyViewSet import EasyViewSet
+        from .views import EasyViewSet
 
         return (self.viewset_class or EasyViewSet).Assemble(
             model=self.model,
@@ -148,53 +158,21 @@ class ModelResource(object):
             resource=self,
             permissions=self.permissions + self.api.permissions,
             description=self.description,
+            serializer_class=self.get_serializer_class(),
         )
 
     @property
     def gql_fields(self):
         fields = {
-            field: get_gql_type(self.model_fields, field) for field in self.fields
+            field: get_gql_type(self.model_fields, field) for field in self.fields + ['id',]
         }
 
         return {k: v for k, v in fields.items() if v}
 
     def generate_graphql(self):
-        from graphene_django.filter import DjangoFilterConnectionField
+        from . import graphql
 
-        if self.graphql_query:
-            return self.graphql_query
-
-        class Meta:
-            model = self.model
-            name = self.model._meta.object_name
-            fields = list(self.gql_fields.keys())
-            filter_fields = self.filterset.filter_fields
-            interfaces = (graphene.relay.Node,)
-
-        EasyObjectType = type(Meta.name, (DjangoObjectType,), {"Meta": Meta})
-
-        stub = "".join(
-            part.capitalize()
-            for part in self.model._meta.verbose_name_plural.split(" ")
-        )
-        list_view = "all_%s" % stub
-        detail_view = stub
-
-        gql_list = DjangoFilterConnectionField(EasyObjectType)
-        gql_detail = graphene.relay.Node.Field(EasyObjectType)
-
-        EasyObjectTypeQuery = type(
-            "%sQuery" % Meta.name,
-            (object,),
-            {
-                detail_view: gql_detail,
-                # "resolve_%s"%detail_view: _detail,
-                list_view: gql_list,
-                # "resolve_%s"%list_view: _list,
-            },
-        )
-
-        return EasyObjectType, EasyObjectTypeQuery
+        return graphql.Assemble(self)
 
     def generate_admin_inline(self, inline_class=None):
         return self.generate_admin(admin_class=inline_class or admin.StackedInline)
@@ -204,8 +182,11 @@ class ModelResource(object):
         GeneratedAdmin = type(
             "%sGeneratedAdmin" % self.model._meta.object_name,
             (admin_class,),
-            {"model": self.model,
-             "list_display": self.list_display
+            {
+                "model": self.model,
+                "list_display": list(
+                    set(self.list_display) - set(self.reverse_relations)
+                ),
             },
         )
 

@@ -59,8 +59,10 @@ class EasyAPI(object):
         self.rest = rest
         self.graphql = graphql
         self.admin = admin
-        all_apis.add(self)
         self._registry.update(self._registry)
+    
+    def __str__(self):
+        return "<EasyAPI %s>"%self.name
 
     def register(self, api_resource, **kwargs):
         from .resource import ModelResource
@@ -79,7 +81,7 @@ class EasyAPI(object):
 
         api = api_resource(self)
         model = api_resource.Meta.model
-        
+
         if model._meta.abstract:
             raise ImproperlyConfigured(
                 "The model %s is abstract, so it cannot "
@@ -129,22 +131,33 @@ class EasyAPI(object):
         router.APIRootView.__doc__ = self.description
 
         queries = []
+        mutations = []
         for model, resource in self._registry.items():
+            resource.filterset.add_subfilters()
+            resource.__dump_info__()
             name = model._meta.model_name
-            viewset = resource.generate_viewset()
-            router.register(
-                r"%s" % resource.label, viewset, "%s %s" % (name, resource.label),
-            )
 
-            objectType, query = resource.generate_graphql()
-            queries.append(query)
+            if self.rest:
+                viewset = resource.generate_viewset()
+                router.register(
+                    r"%s" % resource.label, viewset, "%s %s" % (name, resource.label),
+                )
 
-        class Query(*queries, graphene.ObjectType):
-            pass
+            if self.graphql:
+                objectType, query, mutation = resource.generate_graphql()
+                query and queries.append(query)
+                mutation and mutations.append(mutation)
 
-        schema = graphene.Schema(query=Query)
 
-        urlpatterns = router.urls + [
-            url(r"^graphql$", GraphQLView.as_view(graphiql=True, schema=schema)),
-        ]
+        if self.graphql:
+
+            class Query(*queries, graphene.ObjectType):
+                pass
+            class Mutate(*mutations, graphene.ObjectType):
+                pass
+
+            schema = graphene.Schema(query=Query, mutation=mutations and Mutate or None)
+            urlpatterns = router.urls + [
+                url(r"^graphql$", GraphQLView.as_view(graphiql=True, schema=schema)),
+            ]
         return urlpatterns

@@ -4,4 +4,4 @@ factory_boy
 djangorestframework
 django-filter
 django-cors-headers
-graphene-django
+graphene-django==2.5.0

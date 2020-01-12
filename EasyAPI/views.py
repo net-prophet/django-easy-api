@@ -5,7 +5,7 @@ from rest_framework.filters import OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 
 from EasyAPI.metadata import EasyAPIMetadata
-from EasyAPI.EasySerializer import classproperty
+from EasyAPI.serializers import classproperty
 
 
 class EasyViewSet(viewsets.ModelViewSet):
@@ -14,31 +14,28 @@ class EasyViewSet(viewsets.ModelViewSet):
     permissions = None
 
     @classmethod
-    def Assemble(cls, **kwargs):
-        class AssembledEasyViewSet(cls):
-            fields = kwargs['fields']
-            model = kwargs['model']
-            resource = kwargs['resource']
-            permissions = kwargs['permissions']
-            description = kwargs['description']
-            actions = kwargs.get('actions', {})
-            filterset_class = kwargs['resource'].filterset_class
-        return AssembledEasyViewSet
+    def Assemble(cls, resource, **kwargs):
+        model = resource.model
+        filterset_class = kwargs.pop('filterset_class', resource.filterset_class)
+        actions = kwargs.pop('actions', {})
+
+        return type('%sViewSet'%model._meta.object_name, (cls, ), {
+            'model': model,
+            'resource': resource,
+            'filterset_class': filterset_class,
+            'actions': actions,
+            **kwargs
+        })
 
     @classmethod
     def get_view_name(self):
         return self.model._meta.app_label
 
-    def get_serializer_class(self):
-        from EasyAPI.EasySerializer import EasySerializable
-        return EasySerializable.get_base_serializer_class(self.resource)
-
     def get_queryset(self):
         return self.model.objects.all()
 
-    @property
-    def filters(self):
-        return self.resource.get_filters()
+    def get_serializer_class(self):
+        return self.resource.serializer_class
 
     @classmethod
     def view_save_data(cls, view, request):

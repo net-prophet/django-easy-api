@@ -17,23 +17,6 @@ class WidgetTests(TestCase):
                            shape='Ellipse')
         dummy_obj.save()
 
-    def test_get_name(self):
-        obj = Widget.objects.get(name='testwidget')
-        self.assertEqual(obj.name, 'testwidget')
-        self.assertEqual(str(obj), 'testwidget')
-
-    def test_get_color(self):
-        obj = Widget.objects.get(name='testwidget')
-        self.assertEqual(obj.color, 'Black')
-
-    def test_get_size(self):
-        obj = Widget.objects.get(name='testwidget')
-        self.assertEqual(obj.size, 'Small')
-
-    def test_get_shape(self):
-        obj = Widget.objects.get(name='testwidget')
-        self.assertEqual(obj.shape, 'Rectangle')
-
     def test_all(self):
         obj = Widget.objects.get(name='testwidget')
         self.assertEqual(obj.name, 'testwidget')

@@ -20,6 +20,12 @@ SUPER = {
     'password': 'super123'
 }
 
+# This will be the number of colors, sizes and shapes to permutate
+# Setting this value higher causes exponential slowness, but can be used to verify test correctness
+NUM_OPTS=3 
+
+# This used to be 200 but 50 is giving just as good of answers
+NUM_PURCHASES=50
 
 class FilteringTest(APITestCase):
     def setUp(self):
@@ -29,13 +35,11 @@ class FilteringTest(APITestCase):
     def setUpClass(self):
         # Set up the DB
         super(FilteringTest, self).setUpClass()
-        for color, size, shape in itertools.product(COLORS, SIZES, SHAPES):
+        self.all_options = lambda *_: itertools.product(COLORS[:NUM_OPTS], SIZES[:NUM_OPTS], SHAPES[:NUM_OPTS])
+        for color, size, shape in self.all_options():
             Widget.objects.create(color=color[0],
                                   size=size[0],
                                   shape=shape[0])
-
-        for i in range(0, 200):
-            PurchaseFactory.create()
 
         # Let's create a test user and set our client
         self.user = User.objects.create(username=TEST['username'],
@@ -67,7 +71,7 @@ class FilteringTest(APITestCase):
         self.client.login(username=TEST['username'],
                           password=TEST['password'])
 
-        for color, size, shape in itertools.product(COLORS, SIZES, SHAPES):
+        for color, size, shape in self.all_options():
             fields = (color[0], size[0], shape[0])
             url = '/privateapi/widgets/?color=%s&size=%s&shape=%s' % fields
             api_widgets = self.client.get(url)
