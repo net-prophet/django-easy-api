@@ -1,7 +1,11 @@
+import django.utils.timezone
+import graphene
 from django.db import models
 
-from .options import COLORS, SIZES, SHAPES, GENDERS, STATES
-import django.utils.timezone
+from EasyAPI import APIProperty
+
+from .options import COLORS, GENDERS, SHAPES, SIZES, STATES
+
 
 class Store(models.Model):
     name = models.CharField(max_length=30, blank=True)
@@ -22,12 +26,17 @@ def default_store_id():
     
 class Widget(models.Model):
     store = models.ForeignKey(Store, on_delete=models.CASCADE, default=default_store_id, related_name='widgets')
+    created_at = models.DateTimeField(auto_now=True)
     name = models.CharField(max_length=30, blank=True)
     color = models.CharField(choices=COLORS, max_length=30)
     size = models.CharField(choices=SIZES, max_length=30)
     shape = models.CharField(choices=SHAPES, max_length=30)
     cost = models.FloatField(default=0,
                              blank=True)
+
+    @APIProperty(graphene.String)
+    def age(self, request, **extra):
+        return (django.utils.timezone.now() - self.created_at).total_seconds()
 
     def save(self, *args, **kwargs):
         if self.name == '':

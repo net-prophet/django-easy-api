@@ -202,7 +202,8 @@ class APIMethodsTest(APITestCase):
 
         # Then we randomly pick one to make sure the fields are present
         rand_index = random.randint(0, len(widgets.data) - 1)
-        widget_fields = ['name', 'color', 'size', 'shape', 'cost', 'pk', 'store']
+        widget_fields = ['name', 'color', 'size', 'shape', 'cost', 'pk', 'store', 'created_at']
+        
         self.assertEqual(len(widgets.data[rand_index]), len(widget_fields))
         [self.assertIn(field, widgets.data[rand_index])
          for field in widget_fields]

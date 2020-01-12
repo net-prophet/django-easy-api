@@ -20,20 +20,28 @@ def Assemble(resource):
         interfaces = (graphene.relay.Node,)
         convert_choices_to_enum = False
 
-    ObjectType = type(ObjectMeta.name, (DjangoObjectType,), {"Meta": ObjectMeta})
-    
+    resolvers = dict(
+        [
+            ("resolve_%s" % name, lambda obj, info: getattr(obj, name)(info.context))
+            for name in resource.properties
+        ]
+    )
+
+    ObjectType = type(
+        ObjectMeta.name, (DjangoObjectType,), {"Meta": ObjectMeta, **resolvers, **resource.property_map}
+    )
+
     class MutationMeta:
-        serializer_class = resource.serializer_class.Assemble('id')
+        serializer_class = resource.serializer_class.Assemble("id")
         model = resource.model
-        name = '%sMutation'%resource.model._meta.object_name
+        name = "%sMutation" % resource.model._meta.object_name
         fields = list(resource.gql_fields.keys())
         convert_choices_to_enum = False
-    
-    Mutation = type(MutationMeta.name, (SerializerMutation, ), {"Meta": MutationMeta})
+
+    Mutation = type(MutationMeta.name, (SerializerMutation,), {"Meta": MutationMeta})
 
     stub = "".join(
-        part.capitalize()
-        for part in resource.model._meta.verbose_name.split(" ")
+        part.capitalize() for part in resource.model._meta.verbose_name.split(" ")
     )
     plural = "".join(
         part.capitalize()
@@ -55,7 +63,7 @@ def Assemble(resource):
     EasyMutations = type(
         "%sMutations" % ObjectMeta.name,
         (object,),
-        {'create_%s'%stub: Mutation.Field()},
+        {"create_%s" % stub: Mutation.Field()},
     )
 
-    return ObjectType, EasyQuery, EasyMutations
+    return ObjectType, EasyQuery, None and EasyMutations

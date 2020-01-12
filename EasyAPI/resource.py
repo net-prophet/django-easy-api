@@ -43,6 +43,7 @@ class ModelResource(object):
     viewset_class = None
     filterset_class = None
     serializer_class = None
+    properties = None
     fields = []
     read_only = []
     list_display = []
@@ -52,7 +53,8 @@ class ModelResource(object):
         self,
         api,
         fields=None,  # Fields that can be read and potentially edited
-        read_only=None,  # Fields, methods and properties that are read-only
+        read_only=None,  # Fields that are read-only
+        properties=None,  # Dynamic views available as fields on a resource
         list_display=None,  # The favorite fields to display in a table
         permissions=None,
         inlines=None,
@@ -93,6 +95,13 @@ class ModelResource(object):
 
         self.filterset = self.filterset_class()
 
+        self.properties = properties or self.properties or []
+        self.property_map = {
+            name: getattr(self.model, name)._APIType()
+            for name in self.properties
+            if getattr(getattr(self.model, name, None), '_APIProperty', False)
+        }
+
     def __dump_info__(self):
         print("API Resource: ", self)
         print("\tAPI:        ", self.api)
@@ -103,6 +112,7 @@ class ModelResource(object):
         print("\tInlines:    ", self.inlines)
         print("\tRelations:  ", self.relations)
         print("\tReversRels: ", self.reverse_relations)
+        print("\tProperties: ", self.properties)
 
     @classmethod
     def generate_for_model(cls, _model, **kwargs):
