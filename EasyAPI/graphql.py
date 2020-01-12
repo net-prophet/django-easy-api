@@ -20,19 +20,20 @@ def Assemble(resource):
         interfaces = (graphene.relay.Node,)
         convert_choices_to_enum = False
 
-    resolvers = dict(
-        [
-            ("resolve_%s" % name, lambda obj, info: getattr(obj, name)(info.context))
-            for name in resource.properties
-        ]
-    )
+    resolvers = {}
+    for name, _type in resource.property_map.items():
+        def get_property(name):
+            def property_resolver(obj, info):
+                return getattr(obj, name)()
+            return property_resolver
+        resolvers[name] = _type(resolver=get_property(name))
 
     ObjectType = type(
-        ObjectMeta.name, (DjangoObjectType,), {"Meta": ObjectMeta, **resolvers, **resource.property_map}
+        ObjectMeta.name, (DjangoObjectType,), {"Meta": ObjectMeta, **resolvers}
     )
 
     class MutationMeta:
-        serializer_class = resource.serializer_class.Assemble("id")
+        serializer_class = resource.serializer_class.Assemble(resource, "id")
         model = resource.model
         name = "%sMutation" % resource.model._meta.object_name
         fields = list(resource.gql_fields.keys())

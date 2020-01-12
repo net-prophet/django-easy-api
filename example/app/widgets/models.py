@@ -34,9 +34,13 @@ class Widget(models.Model):
     cost = models.FloatField(default=0,
                              blank=True)
 
-    @APIProperty(graphene.String)
-    def age(self, request, **extra):
+    @APIProperty(graphene.Int)
+    def age(self):
         return (django.utils.timezone.now() - self.created_at).total_seconds()
+
+    @APIProperty(graphene.String)
+    def stub(self):
+        return '%s-%s'%(self.store.name, self.name)
 
     def save(self, *args, **kwargs):
         if self.name == '':

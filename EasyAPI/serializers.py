@@ -14,15 +14,15 @@ class EasySerializable(object):
     @classmethod
     def Assemble(cls, resource, primary_key='pk'):
 
+        # The Resource uses this serializer for both DRF and GQL
+        # so we need to omit both PK and ID, and allow one ID to be added back in
         fields = (primary_key and [primary_key,] or []) + [
             f for f in resource.fields
             if f not in ['id', 'pk'] + resource.reverse_relations]
         ALL = fields
         RO = resource.read_only
-        class EasyBaseSerializer(serializers.ModelSerializer):
-            @classmethod
-            def Assemble(_class, primary_key='pk'):
-                return cls.Assemble(resource, primary_key=primary_key)
+
+        class EasyBaseSerializer(cls, serializers.ModelSerializer):
             class Meta:
                 model = resource.model
                 fields = ALL

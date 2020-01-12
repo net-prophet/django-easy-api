@@ -95,9 +95,12 @@ class ModelResource(object):
 
         self.filterset = self.filterset_class()
 
-        self.properties = properties or self.properties or []
+        self.properties = properties or self.properties or [
+            attr for attr, value in self.model.__dict__.items()
+            if getattr(value, '_APIProperty', False)
+        ]
         self.property_map = {
-            name: getattr(self.model, name)._APIType()
+            name: getattr(self.model, name)._APIType
             for name in self.properties
             if getattr(getattr(self.model, name, None), '_APIProperty', False)
         }

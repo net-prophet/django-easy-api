@@ -8,9 +8,9 @@ from example.app.api import publicapi, privateapi, complexapi
 #  | Customers: Read Store Owner
 #    | Purchases: Read Store Owner
 
-publicapi.register(Widget, fields=['name', 'color'], properties=['age'])
-privateapi.register(Widget, fields=['name', 'color', 'size', 'shape', 'cost'], properties=['age'])
-complexapi.register(Widget, properties=['age'])
+publicapi.register(Widget, fields=['name', 'color'])
+privateapi.register(Widget, fields=['name', 'color', 'size', 'shape', 'cost'])
+complexapi.register(Widget, list_display=['name', 'color', 'size', 'shape', 'cost', 'age'])
 
 publicapi.register(Purchase, fields=['items', 'sale_price'])
 privateapi.register(Purchase, fields=['items', 'sale_price', 'sale_date', 'profit', 'customer'], inlines=['items'])
