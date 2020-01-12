@@ -180,7 +180,7 @@ class ModelResource(object):
             field: get_gql_type(self.model_fields, field) for field in self.fields + ['id',]
         }
 
-        return {k: v for k, v in fields.items() if v}
+        return {k: v for k, v in fields.items() if v and k not in self.reverse_relations}
 
     def generate_graphql(self):
         from . import graphql
