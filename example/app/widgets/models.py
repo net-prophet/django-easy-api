@@ -2,7 +2,7 @@ import django.utils.timezone
 import graphene
 from django.db import models
 
-from EasyAPI import APIProperty
+from EasyAPI.decorators import APIProperty
 
 from .options import COLORS, GENDERS, SHAPES, SIZES, STATES
 

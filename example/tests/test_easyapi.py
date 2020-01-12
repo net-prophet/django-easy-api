@@ -70,7 +70,7 @@ class APIMethodsTest(APITestCase):
 
     def test_register_abstract_model(self):
         from django.db import models
-        from EasyAPI import ModelResource
+        from EasyAPI.resources import ModelResource
 
         class AbstractModel(models.Model):
 
@@ -203,7 +203,7 @@ class APIMethodsTest(APITestCase):
         # Then we randomly pick one to make sure the fields are present
         rand_index = random.randint(0, len(widgets.data) - 1)
         widget_fields = ['name', 'color', 'size', 'shape', 'cost', 'pk', 'store', 'created_at']
-        
+
         self.assertEqual(len(widgets.data[rand_index]), len(widget_fields))
         [self.assertIn(field, widgets.data[rand_index])
          for field in widget_fields]

@@ -1,4 +1,4 @@
-from EasyAPI import EasyAPI
+from EasyAPI.api import EasyAPI
 from rest_framework import permissions
 
 publicapi = EasyAPI('PublicAPI',

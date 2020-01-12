@@ -1,5 +1,4 @@
 from .models import Widget, Purchase, Customer, Store
-from EasyAPI.resource import ModelResource
 from example.app.api import publicapi, privateapi, complexapi
 
 # Stores: Read All, Write Owner

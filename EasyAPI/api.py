@@ -65,7 +65,7 @@ class EasyAPI(object):
         return "<EasyAPI %s>"%self.name
 
     def register(self, api_resource, **kwargs):
-        from .resource import ModelResource
+        from .resources import ModelResource
         
         if isinstance(api_resource, ModelBase):
             api_resource = ModelResource.generate_for_model(api_resource, **kwargs)
