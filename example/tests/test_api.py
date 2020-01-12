@@ -67,7 +67,7 @@ class PublicAPITest(APITestCase):
 
         # Test that None has_permission is False (always returns False)
         # This is PURELY to get to 100% test coverage, it's a dumb test
-        from EasyAPI.resource import AllowNone
+        from EasyAPI.resources import AllowNone
         self.assertFalse(AllowNone.has_permission(None, None, None))
 
     def test_public_get_widget(self):

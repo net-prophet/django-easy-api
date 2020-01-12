@@ -58,13 +58,13 @@ class APIMethodsTest(APITestCase):
     # Import the APIs that we have registered then try to hit their roots
     def test_autodiscover(self):
         api_names = ['PublicAPI', 'PrivateAPI', 'AdminAPI']
-        from EasyAPI import all_apis
+        from EasyAPI.api import all_apis
         for api in all_apis:
             self.assertIn(api.name, api_names)
 
     def test_apps_installed(self):
         from django.apps import apps
-        from EasyAPI import check_dependencies
+        from EasyAPI.api import check_dependencies
         app_config = set(apps.get_app_configs())
         self.assertEqual(check_dependencies(app_config), [])
 
@@ -99,14 +99,14 @@ class APIMethodsTest(APITestCase):
     @modify_settings(INSTALLED_APPS={'remove': ['EasyAPI']})
     def test_checking_easyapi_installed(self):
         from django.apps import apps
-        from EasyAPI import check_dependencies
+        from EasyAPI.api import check_dependencies
         app_config = set(apps.get_app_configs())
         self.assertEqual(check_dependencies(app_config), [])
 
     @modify_settings(INSTALLED_APPS={'remove': ['rest_framework']})
     def test_checking_drf_installed(self):
         from django.apps import apps
-        from EasyAPI import check_dependencies
+        from EasyAPI.api import check_dependencies
         from django.core.checks import Error
         app = 'rest_framework'
         expected = [
@@ -121,7 +121,7 @@ class APIMethodsTest(APITestCase):
     @modify_settings(INSTALLED_APPS={'remove': ['django_filters']})
     def test_checking_django_filters_installed(self):
         from django.apps import apps
-        from EasyAPI import check_dependencies
+        from EasyAPI.api import check_dependencies
         from django.core.checks import Error
         app = 'django_filters'
         expected = [
