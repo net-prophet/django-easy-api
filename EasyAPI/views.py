@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, exceptions
 from rest_framework.response import Response
 from rest_framework.filters import OrderingFilter
 
@@ -133,13 +133,17 @@ class EasyViewSet(viewsets.ModelViewSet):
 
     def check_permissions(self, request):
         permitted = super(EasyViewSet, self).check_permissions(request)
-        return permitted
+        user = self.request.user.is_authenticated and self.request.user or None
+        resource_permissions, audit = self.resource.get_action_permission(self.action, user=user)
+        if resource_permissions:
+            return permitted
+        else:
+            raise exceptions.MethodNotAllowed(self.action)
+
 
     def get_queryset(self):
         user = self.request.user.is_authenticated and self.request.user or None
-        qs, audit = self.resource.get_permitted_queryset(
-            self.action, self.resource.get_permission_context(), user=user
-        )
+        qs, audit = self.resource.get_permitted_queryset(self.action, user=user)
         return qs
 
     def get_permissions(self):

@@ -21,10 +21,13 @@ setup(
     packages=find_packages(exclude=['ez_setup', 'tests*']),
     include_package_data=True,
     install_requires = [
-        'django',
+        'django>=2.0',
         'djangorestframework',
-        'graphene-django',
+        'graphene-django==2.8.0',
         'django-filter',
         'django-cors-headers',
     ],
+    dependency_links=[
+        'git+https://github.com/leewardbound/graphene-django@feature/disable-serializermutation-enums#egg=graphene-django-2.8.0'
+    ]
 )

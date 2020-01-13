@@ -74,15 +74,11 @@ class PublicAPITest(APITestCase):
 
     def test_public_get_purchases(self):
         purchases = self.client.get("/publicapi/purchases/")
-        self.assertEqual(purchases.status_code, status.HTTP_200_OK)
-
-        self.assertEqual(len(purchases.data), 0, "Purchases was registered on publicapi but doesnt specify a security context, no purchases available on publicapi")
+        self.assertEqual(purchases.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_public_get_customers(self):
         customers = self.client.get("/publicapi/customers/")
-        self.assertEqual(customers.status_code, status.HTTP_200_OK)
-
-        self.assertEqual(len(customers.data), 0, "Customers was registered on publicapi but doesnt specify a security context, no customers available on publicapi")
+        self.assertEqual(customers.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 NUM_PURCHASES = 20

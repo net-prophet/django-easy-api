@@ -35,7 +35,6 @@ def Assemble(resource):
     def get_queryset(cls, queryset, info):
         qs, audit = resource.get_permitted_queryset(
             "list",
-            resource.get_permission_context(),
             user=(info.context.user.is_authenticated and info.context.user or None),
             qs=queryset,
         )
@@ -46,7 +45,6 @@ def Assemble(resource):
         obj, audit = resource.get_permitted_object(
             id,
             "detail",
-            resource.get_permission_context(),
             user=(info.context.user.is_authenticated and info.context.user or None),
         )
         return obj
