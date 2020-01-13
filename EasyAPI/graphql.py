@@ -22,14 +22,33 @@ def Assemble(resource):
 
     resolvers = {}
     for name, _type in resource.property_map.items():
+
         def get_property(name):
             def property_resolver(obj, info):
                 return getattr(obj, name)()
+
             return property_resolver
+
         resolvers[name] = _type(resolver=get_property(name))
 
+    @classmethod
+    def get_queryset(cls, queryset, info):
+        qs, audit = resource.get_permitted_queryset(
+                "list",
+                resource.get_permission_context(),
+                user=(info.context.user.is_authenticated and info.context.user or None),
+                qs=queryset
+            )
+        return qs
+        
     ObjectType = type(
-        ObjectMeta.name, (DjangoObjectType,), {"Meta": ObjectMeta, **resolvers}
+        ObjectMeta.name,
+        (DjangoObjectType,),
+        {
+            "Meta": ObjectMeta,
+            **resolvers,
+            "get_queryset": get_queryset,
+        },
     )
 
     class MutationMeta:

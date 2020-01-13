@@ -1,10 +1,12 @@
 import itertools
-from rest_framework import status
-from example.app.widgets.models import Widget
-from example.app.widgets.options import COLORS, SIZES, SHAPES
-from example.tests.factories import PurchaseFactory
+
 from django.contrib.auth import get_user_model
-from rest_framework.test import APITestCase, APIClient
+from rest_framework import status
+from rest_framework.test import APIClient, APITestCase
+
+from example.app.widgets.models import Store, Widget
+from example.app.widgets.options import COLORS, SHAPES, SIZES
+from example.tests.factories import PurchaseFactory
 
 User = get_user_model()
 
@@ -70,6 +72,8 @@ class FilteringTest(APITestCase):
         # Lets login to filter private fields
         self.client.login(username=TEST['username'],
                           password=TEST['password'])
+                          
+        Store.objects.update(owner=self.user)
 
         for color, size, shape in self.all_options():
             fields = (color[0], size[0], shape[0])

@@ -4,13 +4,11 @@ import graphene
 from django.apps import apps
 from django.conf.urls import url
 from django.contrib import admin
+from django.contrib.auth.mixins import AccessMixin
 from django.db.models.base import ModelBase
 from graphene_django.types import DjangoObjectType
 from graphene_django.views import GraphQLView
 from rest_framework import permissions
-from rest_framework.routers import APIRootView, DefaultRouter
-
-from EasyAPI.metadata import EasyAPIMetadata
 
 all_apis = WeakSet()
 actions = ["create", "edit", "retrieve", "list", "delete"]
@@ -44,10 +42,17 @@ def check_dependencies(app_configs, **kwargs):
 class EasyAPI(object):
     _registry = {}
 
-    def __init__(self, name, permission, description=None, 
-            rest=True,
-            graphql=True,
-            admin=False):
+    def __init__(
+        self,
+        name,
+        permission,
+        description=None,
+        rest=True,
+        graphql=True,
+        admin=False,
+        permission_context="*",
+        dump_info=False,
+    ):
         self.name = name
         self._registry = {}
         self.description = (
@@ -59,14 +64,16 @@ class EasyAPI(object):
         self.rest = rest
         self.graphql = graphql
         self.admin = admin
+        self.dump_info = dump_info
+        self.permission_context = permission_context
         self._registry.update(self._registry)
-    
+
     def __str__(self):
-        return "<EasyAPI %s>"%self.name
+        return "<EasyAPI %s>" % self.name
 
     def register(self, api_resource, **kwargs):
         from .resources import ModelResource
-        
+
         if isinstance(api_resource, ModelBase):
             api_resource = ModelResource.generate_for_model(api_resource, **kwargs)
 
@@ -102,12 +109,17 @@ class EasyAPI(object):
         if self.admin:
             admin.site.register(model, api.generate_admin())
 
-
     @property
     def urls(self):
         return self.get_urls(), self.name, self.name
 
+    def get_model(self, model):
+        return self._registry.get(model, None)
+
     def get_urls(self):
+        from rest_framework.routers import APIRootView, DefaultRouter
+        from EasyAPI.metadata import EasyAPIMetadata
+
         router = DefaultRouter()
 
         class EasyAPIRootView(APIRootView):
@@ -134,7 +146,8 @@ class EasyAPI(object):
         mutations = []
         for model, resource in self._registry.items():
             resource.filterset.add_subfilters()
-            resource.__dump_info__()
+            if self.dump_info or resource.dump_info:
+                resource.__dump_info__()
             name = model._meta.model_name
 
             if self.rest:
@@ -148,16 +161,29 @@ class EasyAPI(object):
                 query and queries.append(query)
                 mutation and mutations.append(mutation)
 
-
         if self.graphql:
 
             class Query(*queries, graphene.ObjectType):
                 pass
+
             class Mutate(*mutations, graphene.ObjectType):
                 pass
+            
+            class PermissionedGraphQL(AccessMixin, GraphQLView):
+                permission_classes = self.permissions
+                raise_exception = True
+                def dispatch(self, request, *args, **kwargs):
+                    for permission_class in self.permission_classes:
+                        permission = permission_class()
+                        if not permission.has_permission(request, self):
+                            return self.handle_no_permission()
+                    return super().dispatch(request, *args, **kwargs)
 
             schema = graphene.Schema(query=Query, mutation=mutations and Mutate or None)
             urlpatterns = router.urls + [
-                url(r"^graphql$", GraphQLView.as_view(graphiql=True, schema=schema)),
+                url(
+                    r"^graphql$",
+                    PermissionedGraphQL.as_view(graphiql=True, schema=schema),
+                ),
             ]
         return urlpatterns

@@ -5,11 +5,13 @@ import graphene
 from django.apps import apps
 from django.conf.urls import url
 from django.contrib import admin
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db import models
 from django.db.models.base import ModelBase
 from django.db.models.fields import related, reverse_related
 from graphene_django.filter.fields import DjangoFilterConnectionField
 from graphene_django.types import DjangoObjectType
+from graphene_django.utils import get_model_fields
 from graphene_django.views import GraphQLView
 from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.routers import APIRootView, DefaultRouter
@@ -26,7 +28,7 @@ def get_gql_type(fields, field):
     if field not in fields:
         return None
 
-    if field is 'id':
+    if field is "id":
         return graphene.ID
     return convert_django_field(fields[field])
 
@@ -43,17 +45,22 @@ class ModelResource(object):
     viewset_class = None
     filterset_class = None
     serializer_class = None
+    admin_class = None
     properties = None
     fields = []
     read_only = []
+    write_only = []
     list_display = []
     inlines = []
+    dump_info = False
 
     def __init__(
         self,
         api,
         fields=None,  # Fields that can be read and potentially edited
+        exclude=None,  # Fields that will be excluded
         read_only=None,  # Fields that are read-only
+        write_only=None,  # Fields that are write-only
         properties=None,  # Dynamic views available as fields on a resource
         list_display=None,  # The favorite fields to display in a table
         permissions=None,
@@ -61,6 +68,8 @@ class ModelResource(object):
         viewset_class=None,
         filterset_class=None,
         serializer_class=None,
+        admin_class=None,
+        dump_info=False, # Print the full resource to the console upon mounting
     ):
         # Part 1: Set attributes
         self.api = api
@@ -68,20 +77,52 @@ class ModelResource(object):
         self.viewset_class = viewset_class or self.viewset_class
 
         # Step 2: Fields
-        self.fields = list(f for f in 
-            fields or self.fields or self.model_fields.keys()
-            if f != 'id')
+        self.model_fields = collections.OrderedDict(get_model_fields(self.model))
+        self.model_fields_simple = collections.OrderedDict(
+            (f.name, f) for f in self.model._meta.fields
+        )
 
-        self.relations = self.get_fields(
+        self.relations = self.get_model_fields(
             lambda field: isinstance(field, related.ForeignObject)
         )
-        self.reverse_relations = self.get_fields(
+        self.reverse_relations = self.get_model_fields(
             lambda field: isinstance(field, reverse_related.ForeignObjectRel)
         )
+        self.many_to_many = self.get_model_fields(
+            lambda field: isinstance(field, related.ManyToManyField)
+        )
 
-        self.read_only = ["pk",] + (read_only or self.read_only or self.relations)
+        self.fields = list(
+            f
+            for f in fields
+            or self.fields
+            or (
+                list(self.model_fields.keys()) + self.relations + self.reverse_relations
+            )
+            if f != "id"
+        )
 
-        self.list_display = ["pk", ] + list(list_display or self.list_display or self.fields)
+        self.read_only = ["pk",] + (
+            read_only
+            or self.read_only
+            or [f for f in self.relations if f in self.fields]
+        )
+        self.write_only = write_only or self.write_only or []
+
+        self.list_display = [
+            f
+            for f in ["pk",]
+            + list(
+                list_display
+                or self.list_display
+                or [
+                    f
+                    for f in self.fields
+                    if not f in self.reverse_relations and not f in self.many_to_many
+                ]
+            )
+            if f not in self.write_only
+        ]
 
         # Part 3: Complex setups
         self.inlines = inlines or self.inlines
@@ -92,29 +133,52 @@ class ModelResource(object):
         self.serializer_class = (
             serializer_class or self.serializer_class or EasySerializable.Assemble(self)
         )
+        self.admin_class = admin_class or self.admin_class or admin.ModelAdmin
 
         self.filterset = self.filterset_class()
 
-        self.properties = properties or self.properties or [
-            attr for attr, value in self.model.__dict__.items()
-            if getattr(value, '_APIProperty', False)
-        ]
+        self.gql_fields = {
+            field: get_gql_type(self.model_fields, field)
+            for field in self.fields + self.inlines + ["id",]
+            if not isinstance(self.model_fields[field], GenericForeignKey)
+            and field not in self.write_only
+            and field in self.model_fields
+        }
+
+        self.properties = (
+            properties
+            or self.properties
+            or [
+                attr
+                for attr, value in self.model.__dict__.items()
+                if getattr(value, "_APIProperty", False)
+            ]
+        )
         self.property_map = {
             name: getattr(self.model, name)._APIType
             for name in self.properties
-            if getattr(getattr(self.model, name, None), '_APIProperty', False)
+            if getattr(getattr(self.model, name, None), "_APIProperty", False)
         }
 
     def __dump_info__(self):
         print("API Resource: ", self)
         print("\tAPI:        ", self.api)
+        print()
         print("\tModel:      ", self.model)
+        print("\tModelFields:", list(self.model_fields.keys()))
+        print("\tSimple:     ", list(self.model_fields_simple.keys()))
+        print()
         print("\tFields:     ", self.fields)
         print("\tReadOnly:   ", self.read_only)
         print("\tListDisplay:", self.list_display)
-        print("\tInlines:    ", self.inlines)
+        print("\tGQLFields:  ", list(self.gql_fields.keys()))
+
+        print()
         print("\tRelations:  ", self.relations)
         print("\tReversRels: ", self.reverse_relations)
+        print("\tManyToMany: ", self.many_to_many)
+        print()
+        print("\tInlines:    ", self.inlines)
         print("\tProperties: ", self.properties)
 
     @classmethod
@@ -123,8 +187,9 @@ class ModelResource(object):
             model = _model
 
         kwargs["Meta"] = Meta
+        kwargs['name'] = "%sResource" % _model._meta.object_name
 
-        return type("%sResource" % _model._meta.object_name, (cls,), kwargs)
+        return type(kwargs['name'], (cls,), kwargs)
 
     @property
     def model(self):
@@ -141,26 +206,80 @@ class ModelResource(object):
     def label(self):
         return self.model._meta.verbose_name_plural.replace(" ", "_").lower()
 
-    @property
-    def model_fields(self):
-        return collections.OrderedDict(
-            [(f.name, f) for f in self.model._meta.get_fields()]
-        )
-
     def get_inline_model(self, name):
         return self.model_fields[name].related_model
 
-    def get_fields(self, match=None):
+    def get_model_fields(self, match=None):
         return [
-            f
-            for f in list(self.fields)
-            if f in self.model_fields and (not match or match(self.model_fields[f]))
+            name
+            for name, field in self.model_fields.items()
+            if not match or match(field)
         ]
+    
+    def get_permission_context(self):
+        return self.api.permission_context
 
-    def get_serializer_class(self):
-        from EasyAPI.serializers import EasySerializable
+    def get_permitted_queryset(self, action, context='*', user=None, qs=None):
+        audit = ['Checking permissions on %s for %s'%(self.name, user)]
+        log = lambda *args: audit.append(' '.join(args))
+        if not qs:
+            log('No QS, using all...')
+            qs = self.model.objects.all()
+        contexts = getattr(self.model, '_permissions_contexts', {})
+        permission = None
 
-        return
+        if callable(context):
+            log('Provided callable context')
+            permission = context(self)
+
+        if not permission and not contexts:
+            log('No contexts, returning QS')
+            return qs, audit
+
+        if not permission and context not in contexts:
+            log('%s not found in scopes %s for %s, returning none'%(context, list(contexts.keys()), self.name))
+            return qs.none(), audit
+
+        if not permission and not callable(context):
+            if callable(contexts[context]):
+                log('Matched callable context', context)
+                permission = contexts[context](action)
+            elif action in contexts[context]:
+                log('Matched context action', context, action)
+                permission = contexts[context][action]
+            elif action in ['list', 'detail'] and 'read' in contexts[context]:
+                log('Matched readonly action', context, action)
+                permission = contexts[context]['read']
+            elif '*' in contexts[context]:
+                log('Matched global action', context)
+                permission = contexts[context]['*']
+            else:
+                log('No permissions match')
+                permission = None
+
+        if callable(permission):
+            log('Evaluating callable permission...')
+            permission = permission(user, qs)
+        
+        if isinstance(permission, models.QuerySet):
+            log('Found a queryset, returning it')
+            return permission, audit
+        
+        if permission is True:
+            log('Permission is True, returning full queryset')
+            return qs.all(), audit
+        if permission in [False, None]:
+            log('Permission denied, returning none')
+            return qs.none(), audit
+        
+        log('Unknown permission %s, returning nothing' % permission)
+        return qs.none(), audit
+    
+    def get_permitted_object(self, id, action, context='*', user=None, qs=None):
+        qs, audit = self.get_permission_context_qs(action, context=context, user=user, qs=qs)
+        result = qs.filter(id=id).first()
+        audit.append('Filtering queryset for id=%s, got: %s'%(id, result))
+        return result, audit
 
     def generate_viewset(self):
         from .views import EasyViewSet
@@ -171,35 +290,35 @@ class ModelResource(object):
             resource=self,
             permissions=self.permissions + self.api.permissions,
             description=self.description,
-            serializer_class=self.get_serializer_class(),
+            serializer_class=self.serializer_class,
         )
-
-    @property
-    def gql_fields(self):
-        fields = {
-            field: get_gql_type(self.model_fields, field) for field in self.fields + ['id',]
-        }
-
-        return {k: v for k, v in fields.items() if v and k not in self.reverse_relations}
 
     def generate_graphql(self):
         from . import graphql
 
         return graphql.Assemble(self)
 
-    def generate_admin_inline(self, inline_class=None):
-        return self.generate_admin(admin_class=inline_class or admin.StackedInline)
+    def generate_admin_inline(self, name, inline_class=None):
+        field = self.model_fields[name]
+        related_model = self.api._registry[self.get_inline_model(name)]
+        return related_model.generate_admin(
+            admin_class=inline_class or admin.StackedInline,
+            fk_name=field.remote_field.name,
+        )
 
-    def generate_admin(self, admin_class=None):
-        admin_class = admin_class or admin.ModelAdmin
+    def generate_admin(self, admin_class=None, **extra):
+        admin_class = admin_class or self.admin_class
         GeneratedAdmin = type(
             "%sGeneratedAdmin" % self.model._meta.object_name,
             (admin_class,),
             {
                 "model": self.model,
-                "list_display": list(
-                    set(self.list_display) - set(self.reverse_relations)
-                ),
+                "list_display": [
+                    f
+                    for f in self.list_display
+                    if f not in self.reverse_relations and f not in self.many_to_many
+                ],
+                **extra,
             },
         )
 
@@ -207,10 +326,7 @@ class ModelResource(object):
             setattr(
                 GeneratedAdmin,
                 "inlines",
-                [
-                    self.api._registry[self.get_inline_model(i)].generate_admin_inline()
-                    for i in self.inlines
-                ],
+                [self.generate_admin_inline(i) for i in self.inlines],
             )
 
         return GeneratedAdmin

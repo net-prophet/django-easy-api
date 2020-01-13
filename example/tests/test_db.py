@@ -70,7 +70,7 @@ class PurchaseTests(TestCase):
     def test_customer_methods(self):
         cust = Customer.objects.get(name='testcust')
         pur = Purchase.objects.first()
-        self.assertEqual(cust.get_purchases().first(), pur)
+        self.assertEqual(cust.purchases.first(), pur)
 
         self.assertEqual(cust.name, 'testcust')
         self.assertEqual(cust.state, 'Florida')

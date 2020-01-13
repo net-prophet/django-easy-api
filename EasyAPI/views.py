@@ -141,6 +141,11 @@ class EasyViewSet(viewsets.ModelViewSet):
         permitted = super(EasyViewSet, self).check_permissions(request)
         return permitted
 
+    def get_queryset(self):
+        user = self.request.user.is_authenticated and self.request.user or None
+        qs, audit = self.resource.get_permitted_queryset(self.action, self.resource.get_permission_context(), user=user)
+        return qs
+
     def get_permissions(self):
         permission_classes = self.permissions + []
         

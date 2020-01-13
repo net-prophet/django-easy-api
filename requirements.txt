@@ -5,4 +5,4 @@ django==2.2.9
 djangorestframework
 django-filter
 django-cors-headers
-graphene-django==2.5.0
+graphene-django==2.8.0
