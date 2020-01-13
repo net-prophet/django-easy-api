@@ -276,7 +276,7 @@ class ModelResource(object):
         return qs.none(), audit
     
     def get_permitted_object(self, id, action, context='*', user=None, qs=None):
-        qs, audit = self.get_permission_context_qs(action, context=context, user=user, qs=qs)
+        qs, audit = self.get_permitted_queryset(action, context=context, user=user, qs=qs)
         result = qs.filter(id=id).first()
         audit.append('Filtering queryset for id=%s, got: %s'%(id, result))
         return result, audit

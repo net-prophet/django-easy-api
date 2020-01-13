@@ -34,13 +34,23 @@ def Assemble(resource):
     @classmethod
     def get_queryset(cls, queryset, info):
         qs, audit = resource.get_permitted_queryset(
-                "list",
-                resource.get_permission_context(),
-                user=(info.context.user.is_authenticated and info.context.user or None),
-                qs=queryset
-            )
+            "list",
+            resource.get_permission_context(),
+            user=(info.context.user.is_authenticated and info.context.user or None),
+            qs=queryset,
+        )
         return qs
-        
+
+    @classmethod
+    def get_node(cls, info, id):
+        obj, audit = resource.get_permitted_object(
+            id,
+            "detail",
+            resource.get_permission_context(),
+            user=(info.context.user.is_authenticated and info.context.user or None),
+        )
+        return obj
+
     ObjectType = type(
         ObjectMeta.name,
         (DjangoObjectType,),
@@ -48,6 +58,7 @@ def Assemble(resource):
             "Meta": ObjectMeta,
             **resolvers,
             "get_queryset": get_queryset,
+            "get_node": get_node,
         },
     )
 
