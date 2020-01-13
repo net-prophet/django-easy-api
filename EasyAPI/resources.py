@@ -69,7 +69,7 @@ class ModelResource(object):
         filterset_class=None,
         serializer_class=None,
         admin_class=None,
-        dump_info=False, # Print the full resource to the console upon mounting
+        dump_info=False,  # Print the full resource to the console upon mounting
     ):
         # Part 1: Set attributes
         self.api = api
@@ -187,9 +187,9 @@ class ModelResource(object):
             model = _model
 
         kwargs["Meta"] = Meta
-        kwargs['name'] = "%sResource" % _model._meta.object_name
+        kwargs["name"] = "%sResource" % _model._meta.object_name
 
-        return type(kwargs['name'], (cls,), kwargs)
+        return type(kwargs["name"], (cls,), kwargs)
 
     @property
     def model(self):
@@ -215,70 +215,114 @@ class ModelResource(object):
             for name, field in self.model_fields.items()
             if not match or match(field)
         ]
-    
+
     def get_permission_context(self):
         return self.api.permission_context
 
-    def get_permitted_queryset(self, action, context='*', user=None, qs=None):
-        audit = ['Checking permissions on %s for %s'%(self.name, user)]
-        log = lambda *args: audit.append(' '.join(args))
+    def get_permitted_queryset(self, action, context="*", user=None, qs=None):
+        audit = [
+            "Checking permissions on %s:%s %s for %s"
+            % (context, action, self.name, user)
+        ]
+        log = lambda *args: audit.append(" ".join(args))
         if not qs:
-            log('No QS, using all...')
+            log("No QS, using all...")
             qs = self.model.objects.all()
-        contexts = getattr(self.model, '_permissions_contexts', {})
+        contexts = getattr(self.model, "_permissions_contexts", {})
         permission = None
 
         if callable(context):
-            log('Provided callable context')
+            log("Provided callable context")
             permission = context(self)
 
-        if not permission and not contexts:
-            log('No contexts, returning QS')
+        if permission is None and not contexts:
+            log("No contexts, returning QS")
             return qs, audit
 
-        if not permission and context not in contexts:
-            log('%s not found in scopes %s for %s, returning none'%(context, list(contexts.keys()), self.name))
+        if permission is None and context not in contexts:
+            log(
+                "%s not found in contexts %s for %s, returning none"
+                % (context, list(contexts.keys()), self.name)
+            )
             return qs.none(), audit
 
-        if not permission and not callable(context):
-            if callable(contexts[context]):
-                log('Matched callable context', context)
-                permission = contexts[context](action)
-            elif action in contexts[context]:
-                log('Matched context action', context, action)
-                permission = contexts[context][action]
-            elif action in ['list', 'detail'] and 'read' in contexts[context]:
-                log('Matched readonly action', context, action)
-                permission = contexts[context]['read']
-            elif '*' in contexts[context]:
-                log('Matched global action', context)
-                permission = contexts[context]['*']
-            else:
-                log('No permissions match')
-                permission = None
+        if permission is None and not callable(context):
+            permission = contexts[context]
+            if callable(permission):
+                log("Matched callable context", context)
+                permission = permission(action)
+
+            elif isinstance(permission, dict):
+                if action in permission:
+                    log("Matched context action", context, action)
+                    permission = permission[action]
+                elif action in ["list", "retrieve"] and "read" in permission:
+                    log("Matched readonly action", context, action)
+                    permission = permission["read"]
+                elif "*" in permission:
+                    log("Matched global action", context)
+                    permission = contexts[context]["*"]
+                else:
+                    log("%s not found in context %s, denying" % (action, context))
+                    permission = None
 
         if callable(permission):
-            log('Evaluating callable permission...')
+            log("Evaluating callable permission...")
             permission = permission(user, qs)
-        
+
+        if isinstance(permission, str):
+            if permission is "*":
+                log("Permission is *, allowing...")
+                permission = True
+            if permission in self.relations:
+                log(
+                    'Permission is a string "%s", looking for relations...' % permission
+                )
+                related_field = self.model_fields[permission]
+                related_resource = self.api.get_resource_for_model(
+                    related_field.remote_field.model
+                )
+                log(
+                    "Matched permission %s to relation %s"
+                    % (permission, related_resource)
+                )
+                sub_query, sub_audit = related_resource.get_permitted_queryset(
+                    action, context, user
+                )
+                permission = qs.filter(
+                    **{
+                        "%s_id__in"
+                        % permission: sub_query.values_list("id", flat=True).distinct()
+                    }
+                )
+                audit += ["  " + line for line in sub_audit]
+            else:
+                log(
+                    'Couldnt match permission "%s" to any relation on %s'
+                    % (permission, self.model)
+                )
+                permission = False
+
         if isinstance(permission, models.QuerySet):
-            log('Found a queryset, returning it')
+            log("Found a queryset, returning it")
             return permission, audit
-        
+
         if permission is True:
-            log('Permission is True, returning full queryset')
+            log("Permission is True, returning full queryset")
             return qs.all(), audit
         if permission in [False, None]:
-            log('Permission denied, returning none')
+            log("Permission denied, returning none")
             return qs.none(), audit
-        
-        log('Unknown permission %s, returning nothing' % permission)
+
+        log("Unknown permission %s, returning nothing" % permission)
         return qs.none(), audit
-    
-    def get_permitted_object(self, id, action, context='*', user=None, qs=None):
-        qs, audit = self.get_permitted_queryset(action, context=context, user=user, qs=qs)
+
+    def get_permitted_object(self, id, action, context="*", user=None, qs=None):
+        qs, audit = self.get_permitted_queryset(
+            action, context=context, user=user, qs=qs
+        )
         result = qs.filter(id=id).first()
-        audit.append('Filtering queryset for id=%s, got: %s'%(id, result))
+        audit.append("Filtering queryset for id=%s, got: %s" % (id, result))
         return result, audit
 
     def generate_viewset(self):

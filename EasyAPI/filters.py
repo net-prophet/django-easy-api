@@ -48,11 +48,7 @@ def map_filter_fields(resource, fields):
 class EasyFilters(object):
     @classmethod
     def Assemble(cls, resource):
-        the_fields = [
-            f
-            for f in resource.fields
-            if f in resource.model_fields_simple
-        ]
+        the_fields = [f for f in resource.fields if f in resource.model_fields_simple]
 
         class GenericBaseFilters(django_filters.FilterSet):
             filter_fields = {}

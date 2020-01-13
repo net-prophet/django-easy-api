@@ -113,7 +113,7 @@ class EasyAPI(object):
     def urls(self):
         return self.get_urls(), self.name, self.name
 
-    def get_model(self, model):
+    def get_resource_for_model(self, model):
         return self._registry.get(model, None)
 
     def get_urls(self):
@@ -168,10 +168,11 @@ class EasyAPI(object):
 
             class Mutate(*mutations, graphene.ObjectType):
                 pass
-            
+
             class PermissionedGraphQL(AccessMixin, GraphQLView):
                 permission_classes = self.permissions
                 raise_exception = True
+
                 def dispatch(self, request, *args, **kwargs):
                     for permission_class in self.permission_classes:
                         permission = permission_class()

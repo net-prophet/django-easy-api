@@ -16,16 +16,20 @@ class EasyViewSet(viewsets.ModelViewSet):
     @classmethod
     def Assemble(cls, resource, **kwargs):
         model = resource.model
-        filterset_class = kwargs.pop('filterset_class', resource.filterset_class)
-        actions = kwargs.pop('actions', {})
+        filterset_class = kwargs.pop("filterset_class", resource.filterset_class)
+        actions = kwargs.pop("actions", {})
 
-        return type('%sViewSet'%model._meta.object_name, (cls, ), {
-            'model': model,
-            'resource': resource,
-            'filterset_class': filterset_class,
-            'actions': actions,
-            **kwargs
-        })
+        return type(
+            "%sViewSet" % model._meta.object_name,
+            (cls,),
+            {
+                "model": model,
+                "resource": resource,
+                "filterset_class": filterset_class,
+                "actions": actions,
+                **kwargs,
+            },
+        )
 
     @classmethod
     def get_view_name(self):
@@ -68,24 +72,18 @@ class EasyViewSet(viewsets.ModelViewSet):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(
-            serializer.data,
-            status=status.HTTP_201_CREATED,
-            headers=headers
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers
         )
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop("partial", False)
         data = self.view_update_data(self, request)
         instance = self.get_object()
-        serializer = self.get_serializer(
-            instance,
-            data=data,
-            partial=partial
-        )
+        serializer = self.get_serializer(instance, data=data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
-        if getattr(instance, '_prefetched_objects_cache', None):
+        if getattr(instance, "_prefetched_objects_cache", None):
             # If 'prefetch_related' has been applied
             # to a queryset, we need to
             # forcibly invalidate the prefetch cache on the instance.
@@ -96,29 +94,25 @@ class EasyViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         from django.core.exceptions import ValidationError
         from rest_framework import serializers
+
         try:
             return self.view_perform_create(self, serializer)
         except (ValidationError) as e:
-            raise serializers.ValidationError(getattr(e,
-                                                      'message',
-                                                      str(e))
-                                              )
+            raise serializers.ValidationError(getattr(e, "message", str(e)))
 
     def perform_update(self, serializer):
         from django.core.exceptions import ValidationError
         from rest_framework import serializers
+
         try:
             return self.view_perform_update(self, serializer)
         except (ValidationError) as e:
-            raise serializers.ValidationError(getattr(e,
-                                                      'message',
-                                                      str(e))
-                                              )
+            raise serializers.ValidationError(getattr(e, "message", str(e)))
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        as_csv = request.GET.get('format') == 'csv'
-        all_rows = request.GET.get('all_rows') == 'true'
+        as_csv = request.GET.get("format") == "csv"
+        all_rows = request.GET.get("all_rows") == "true"
 
         page = self.paginate_queryset(queryset)
 
@@ -129,12 +123,12 @@ class EasyViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(queryset, many=True)
             resp = Response(serializer.data)
 
-        if(as_csv):
-            fn = request.GET.get('filename', self.model.plural+'.csv')
+        if as_csv:
+            fn = request.GET.get("filename", self.model.plural + ".csv")
             dispo = 'attachment; filename="%s"' % fn
-            resp['Content-Disposition'] = dispo
-            resp['Content-Type'] = 'text/csv; charset=utf-8'
-        resp['Count'] = queryset.count()
+            resp["Content-Disposition"] = dispo
+            resp["Content-Type"] = "text/csv; charset=utf-8"
+        resp["Count"] = queryset.count()
         return resp
 
     def check_permissions(self, request):
@@ -143,11 +137,12 @@ class EasyViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user.is_authenticated and self.request.user or None
-        qs, audit = self.resource.get_permitted_queryset(self.action, self.resource.get_permission_context(), user=user)
+        qs, audit = self.resource.get_permitted_queryset(
+            self.action, self.resource.get_permission_context(), user=user
+        )
         return qs
 
     def get_permissions(self):
         permission_classes = self.permissions + []
-        
 
         return [permission() for permission in permission_classes]

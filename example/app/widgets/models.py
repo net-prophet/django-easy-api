@@ -2,27 +2,29 @@ import django.utils.timezone
 import graphene
 from django.db import models
 
-from EasyAPI.decorators import APIProperty
+from EasyAPI.decorators import APIProperty, AddPermissionContext
 
 from .options import COLORS, GENDERS, SHAPES, SIZES, STATES
 
 from django.contrib.auth.models import AbstractUser
 
 
+@AddPermissionContext(
+    "*", {"read": True, "write": lambda user, qs: user and qs.filter(pk=user.id)}
+)
 class User(AbstractUser):
     pass
 
 
+@AddPermissionContext("*", {"read": True})
+@AddPermissionContext(
+    "store_owner", {"*": lambda user, qs: user and qs.filter(owner=user)}
+)
 class Store(models.Model):
     name = models.CharField(max_length=30, blank=True)
     owner = models.ForeignKey(
         "widgets.User", on_delete=models.CASCADE, related_name="stores"
     )
-
-    _permissions_contexts = {
-        "*": {"list": True, "details": True},
-        "store_owner": {"*": lambda user, qs: qs.filter(owner=user)},
-    }
 
     @classmethod
     def DEFAULT(cls):
@@ -39,6 +41,8 @@ def default_store_id():
     return Store.DEFAULT().id
 
 
+@AddPermissionContext("*", {"read": True})
+@AddPermissionContext("store_owner", {"*": "store"})
 class Widget(models.Model):
     store = models.ForeignKey(
         Store,
@@ -52,10 +56,6 @@ class Widget(models.Model):
     size = models.CharField(choices=SIZES, max_length=30)
     shape = models.CharField(choices=SHAPES, max_length=30)
     cost = models.FloatField(default=0, blank=True)
-    _permissions_contexts = {
-        "*": {"list": True, "details": True},
-        "store_owner": {"*": lambda user, qs: qs.filter(store__owner=user).distinct()},
-    }
 
     @APIProperty(graphene.Int)
     def age(self):
@@ -79,18 +79,25 @@ class Widget(models.Model):
         return self.name
 
 
+@AddPermissionContext(
+    "store_owner", "store",
+)
 class Customer(models.Model):
+    store = models.ForeignKey(
+        Store,
+        on_delete=models.CASCADE,
+        related_name="customers",
+        default=default_store_id,
+    )
     name = models.CharField(max_length=30, blank=True)
     state = models.CharField(max_length=30, blank=True)
     gender = models.CharField(max_length=1, blank=True)
     age = models.IntegerField(blank=True)
-    _permissions_contexts = {
-        "store_owner": {
-            "*": lambda user, qs: qs.filter(purchases__items__widget__store__owner=user).distinct()
-        }
-    }
 
 
+@AddPermissionContext(
+    "store_owner", {"read": "customer"},
+)
 class Purchase(models.Model):
     sale_date = models.DateTimeField(default=django.utils.timezone.now)
     sale_price = models.FloatField(default=0, blank=True)
@@ -98,11 +105,6 @@ class Purchase(models.Model):
     customer = models.ForeignKey(
         Customer, on_delete=models.CASCADE, related_name="purchases"
     )
-    _permissions_contexts = {
-        "store_owner": {
-            "read": lambda user, qs: qs.filter(items__widget__store__owner=user).distinct()
-        }
-    }
 
     def get_cost(self):
         costs = [item.widget.cost for item in self.items.all()]
@@ -127,6 +129,9 @@ class Purchase(models.Model):
         super(Purchase, self).save(*args, **kwargs)
 
 
+@AddPermissionContext(
+    "store_owner", {"read": "purchase"},
+)
 class PurchaseItem(models.Model):
     purchase = models.ForeignKey(
         Purchase, on_delete=models.CASCADE, related_name="items"
@@ -134,6 +139,3 @@ class PurchaseItem(models.Model):
     widget = models.ForeignKey(
         "widgets.Widget", on_delete=models.CASCADE, related_name="items"
     )
-    _permissions_contexts = {
-        "store_owner": {"read": lambda user, qs: qs.filter(widget__store__owner=user).distinct()}
-    }
