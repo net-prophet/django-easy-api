@@ -19,6 +19,7 @@ from rest_framework.routers import APIRootView, DefaultRouter
 from EasyAPI.filters import EasyFilters
 from EasyAPI.metadata import EasyAPIMetadata
 from EasyAPI.serializers import EasySerializable
+from EasyAPI.permissions import get_action_permission, get_permitted_queryset, get_permitted_object
 
 
 def get_gql_type(fields, field):
@@ -31,22 +32,6 @@ def get_gql_type(fields, field):
     if field is "id":
         return graphene.ID
     return convert_django_field(fields[field])
-
-
-class AllowNone(BasePermission):
-    def has_permission(self, request, view):
-        return False
-
-
-class AuditLog(list):
-    def log(self, *args):
-        self.append(" ".join(args))
-
-    def add_child(self, other):
-        self += ["  " + line for line in other]
-
-    def __str__(self):
-        return "\n".join(line for line in self)
 
 
 class ModelResource(object):
@@ -116,7 +101,7 @@ class ModelResource(object):
         self.read_only = ["pk",] + (
             read_only
             or self.read_only
-            or [f for f in self.relations if f in self.fields]
+            or [f for f in self.reverse_relations if f in self.fields]
         )
         self.write_only = write_only or self.write_only or []
 
@@ -171,27 +156,6 @@ class ModelResource(object):
             if getattr(getattr(self.model, name, None), "_APIProperty", False)
         }
 
-    def __dump_info__(self):
-        print("API Resource: ", self)
-        print("\tAPI:        ", self.api)
-        print()
-        print("\tModel:      ", self.model)
-        print("\tModelFields:", list(self.model_fields.keys()))
-        print("\tSimple:     ", list(self.model_fields_simple.keys()))
-        print()
-        print("\tFields:     ", self.fields)
-        print("\tReadOnly:   ", self.read_only)
-        print("\tListDisplay:", self.list_display)
-        print("\tGQLFields:  ", list(self.gql_fields.keys()))
-
-        print()
-        print("\tRelations:  ", self.relations)
-        print("\tReversRels: ", self.reverse_relations)
-        print("\tManyToMany: ", self.many_to_many)
-        print()
-        print("\tInlines:    ", self.inlines)
-        print("\tProperties: ", self.properties)
-
     @classmethod
     def generate_for_model(cls, _model, **kwargs):
         class Meta(kwargs.get("Meta", object)):
@@ -229,144 +193,16 @@ class ModelResource(object):
 
     def get_permission_context(self):
         return self.api.permission_context
+    
 
-    def get_action_permission(self, action, user):
-        context = self.get_permission_context()
-        audit = AuditLog(
-            [
-                "get_action_permissions on %s:%s %s for %s"
-                % (context, action, self.name, user)
-            ]
-        )
-
-        contexts = getattr(self.model, "_permissions_contexts", {})
-        permission = None
-
-        if callable(context):
-            audit.log("Provided callable context")
-            context = context(self)
-            
-        if context in [True, False, None]:
-            audit.log("Callable context is a boolean, returning %s" % context)
-            return context, audit
-
-        if permission is None and not contexts:
-            audit.log("No contexts, returning None")
-            return None, audit
-
-        if permission is None and context not in contexts:
-            audit.log(
-                "%s not found in contexts %s for %s, returning None"
-                % (context, list(contexts.keys()), self.name)
-            )
-            return None, audit
-
-        if callable(contexts[context]):
-            audit.log("Matched callable permission for context %s" % (context))
-            return permission, audit
-
-        permission = contexts[context]
-
-        if isinstance(permission, dict):
-            if action in permission:
-                audit.log("Matched context action", context, action)
-                permission = permission[action]
-            elif action in ["list", "retrieve", "metadata"] and "read" in permission:
-                audit.log("Matched readonly action", context, action)
-                permission = permission["read"]
-            elif "*" in permission:
-                audit.log("Matched global action", context)
-                permission = contexts[context]["*"]
-            else:
-                audit.log("%s not found in context %s, denying" % (action, context))
-                permission = None
-
-        if callable(permission):
-            audit.log("Returning callable permission...")
-            return permission, audit
-
-        if isinstance(permission, str):
-            if permission is "*":
-                audit.log("Permission is *, allowing...")
-                return True, audit
-
-        if permission in [True, False, None]:
-            audit.log("Permission is %s" % permission)
-            return permission, audit
-
-        audit.log("Unknown permission %s, returning it" % permission)
-        return permission, audit
-
-    def get_permitted_queryset(self, action, user=None, qs=None):
-        audit = AuditLog(["get_permitted_queryset on %s for %s" % (self.name, user)])
-
-        if not qs:
-            audit.log(
-                "No queryset specified, starting with %s.objects.all()"
-                % self.model._meta.object_name
-            )
-            qs = self.model.objects.all()
-
-        permission, sub_audit = self.get_action_permission(action, user=user)
-
-        audit.add_child(sub_audit)
-
-        if callable(permission):
-            audit.log("Evaluating callable permission...")
-            permission = permission(user, qs)
-
-        if isinstance(permission, str):
-            if permission is "*":
-                audit.log("Permission is *, allowing...")
-                permission = True
-            if permission in self.relations:
-                audit.log(
-                    'Permission is a string "%s", looking for relations...' % permission
-                )
-                related_field = self.model_fields[permission]
-                related_resource = self.api.get_resource_for_model(
-                    related_field.remote_field.model
-                )
-                audit.log(
-                    "Matched permission %s to relation %s"
-                    % (permission, related_resource)
-                )
-                sub_query, sub_audit = related_resource.get_permitted_queryset(
-                    action, user=user
-                )
-                permission = qs.filter(
-                    **{
-                        "%s_id__in"
-                        % permission: sub_query.values_list("id", flat=True).distinct()
-                    }
-                )
-                audit += ["  " + line for line in sub_audit]
-            else:
-                audit.log(
-                    'Couldnt match permission "%s" to any relation on %s'
-                    % (permission, self.model)
-                )
-                permission = False
-
-        if isinstance(permission, models.QuerySet):
-            audit.log("Found a queryset, returning it")
-            return permission, audit
-
-        if permission is True:
-            audit.log("Permission is True, returning full queryset")
-            return qs.all(), audit
-        if permission in [False, None]:
-            audit.log("Permission denied, returning none")
-            return qs.none(), audit
-
-        audit.log("Unknown permission %s, returning nothing" % permission)
-        return qs.none(), audit
+    def get_action_permission(self, action, user=None):
+        return get_action_permission(self, action, user=user)
 
     def get_permitted_object(self, id, action, user=None, qs=None):
-        qs, audit = self.get_permitted_queryset(action, user=user, qs=qs)
-        result = qs.filter(id=id).first()
-        audit.append("Filtering queryset for id=%s, got: %s" % (id, result))
-        return result, audit
+        return get_action_permission(self, id, action, user=user, qs=qs)
+
+    def get_permitted_queryset(self, action, user=None, qs=None):
+        return get_permitted_queryset(self, action, user=user, qs=qs)
 
     def generate_viewset(self):
         from .views import EasyViewSet
@@ -417,3 +253,24 @@ class ModelResource(object):
             )
 
         return GeneratedAdmin
+
+    def __dump_info__(self):
+        print("API Resource: ", self)
+        print("\tAPI:        ", self.api)
+        print()
+        print("\tModel:      ", self.model)
+        print("\tModelFields:", list(self.model_fields.keys()))
+        print("\tSimple:     ", list(self.model_fields_simple.keys()))
+        print()
+        print("\tFields:     ", self.fields)
+        print("\tReadOnly:   ", self.read_only)
+        print("\tListDisplay:", self.list_display)
+        print("\tGQLFields:  ", list(self.gql_fields.keys()))
+
+        print()
+        print("\tRelations:  ", self.relations)
+        print("\tReversRels: ", self.reverse_relations)
+        print("\tManyToMany: ", self.many_to_many)
+        print()
+        print("\tInlines:    ", self.inlines)
+        print("\tProperties: ", self.properties)

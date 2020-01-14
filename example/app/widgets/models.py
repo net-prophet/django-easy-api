@@ -10,7 +10,7 @@ from django.contrib.auth.models import AbstractUser
 
 
 @AddPermissionContext(
-    "*", {"read": True, "write": lambda user, qs: user and qs.filter(pk=user.id)}
+    "*", {"*": lambda user, qs: user and qs.filter(pk=user.id)}
 )
 class User(AbstractUser):
     pass
@@ -25,6 +25,7 @@ class Store(models.Model):
     owner = models.ForeignKey(
         "widgets.User", on_delete=models.CASCADE, related_name="stores"
     )
+    setattr(owner, '_APIDefault', lambda resource, request: request.user)
 
     @classmethod
     def DEFAULT(cls):
@@ -36,7 +37,6 @@ class Store(models.Model):
 
         return cls.objects.get_or_create(name="DEFAULT", owner=User.objects.first())[0]
 
-
 def default_store_id():
     return Store.DEFAULT().id
 
@@ -47,7 +47,7 @@ class Widget(models.Model):
     store = models.ForeignKey(
         Store,
         on_delete=models.CASCADE,
-        default=default_store_id,
+        #default=default_store_id,
         related_name="widgets",
     )
     created_at = models.DateTimeField(auto_now=True)

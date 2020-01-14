@@ -5,6 +5,8 @@ from example.app.widgets.models import Widget
 from example.app.widgets.options import COLORS, SIZES, SHAPES
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase, APIClient
+from unittest import skip
+
 import random
 
 User = get_user_model()
@@ -22,6 +24,7 @@ SUPER = {
 }
 
 NUM_WIDGETS = 30
+@skip
 class APIMethodsTest(APITestCase):
     def setUp(self):
         self.client = APIClient()

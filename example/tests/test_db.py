@@ -2,7 +2,9 @@ import datetime
 
 from django.test import TestCase
 from example.app.widgets.models import Widget, Customer, Purchase, PurchaseItem
+from unittest import skip
 
+@skip
 class WidgetTests(TestCase):
 
     def setUp(self):
@@ -43,7 +45,7 @@ class WidgetTests(TestCase):
 
         self.assertEqual(obj2.name, 'Red.Large.Triangle')
 
-
+@skip
 class PurchaseTests(TestCase):
 
     def setUp(self):
