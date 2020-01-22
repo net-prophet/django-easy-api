@@ -1,11 +1,12 @@
 from weakref import WeakSet
 
-import graphene
+import graphene, json
 from django.apps import apps
 from django.conf.urls import url
 from django.contrib import admin
 from django.contrib.auth.mixins import AccessMixin
 from django.db.models.base import ModelBase
+from django.views.decorators.csrf import csrf_exempt
 from graphene_django.types import DjangoObjectType
 from graphene_django.views import GraphQLView
 from rest_framework import permissions
@@ -174,6 +175,12 @@ class EasyAPI(object):
                 raise_exception = True
 
                 def dispatch(self, request, *args, **kwargs):
+                    from rest_framework_simplejwt.authentication import JWTAuthentication
+                    if request.META.get('HTTP_AUTHORIZATION', None):
+                        try:
+                            request.user, request.auth = JWTAuthentication().authenticate(request)
+                        except:
+                            pass
                     for permission_class in self.permission_classes:
                         permission = permission_class()
                         if not permission.has_permission(request, self):
@@ -181,10 +188,11 @@ class EasyAPI(object):
                     return super().dispatch(request, *args, **kwargs)
 
             schema = graphene.Schema(query=Query, mutation=mutations and Mutate or None)
-            urlpatterns = router.urls + [
-                url(
-                    r"^graphql$",
-                    PermissionedGraphQL.as_view(graphiql=True, schema=schema),
-                ),
-            ]
+
+        urlpatterns = router.urls + (self.graphql and [
+            url(
+                r"^graphql$",
+                csrf_exempt(PermissionedGraphQL.as_view(graphiql=True, schema=schema)),
+            ),
+        ] or []) 
         return urlpatterns

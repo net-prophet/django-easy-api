@@ -95,4 +95,4 @@ def Assemble(resource):
         {"create_%s" % stub: Mutation.Field()},
     )
 
-    return ObjectType, EasyQuery, EasyMutations
+    return ObjectType, EasyQuery, None and EasyMutations

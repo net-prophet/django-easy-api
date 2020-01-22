@@ -136,7 +136,8 @@ class ModelResource(object):
         self.gql_fields = {
             field: get_gql_type(self.model_fields, field)
             for field in self.fields + self.inlines + ["id",]
-            if not isinstance(self.model_fields[field], GenericForeignKey)
+            if self.api.graphql and
+            not isinstance(self.model_fields[field], GenericForeignKey)
             and field not in self.write_only
             and field in self.model_fields
         }
@@ -199,7 +200,7 @@ class ModelResource(object):
         return get_action_permission(self, action, user=user)
 
     def get_permitted_object(self, id, action, user=None, qs=None):
-        return get_action_permission(self, id, action, user=user, qs=qs)
+        return get_permitted_object(self, id, action, user=user, qs=qs)
 
     def get_permitted_queryset(self, action, user=None, qs=None):
         return get_permitted_queryset(self, action, user=user, qs=qs)

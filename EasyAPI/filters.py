@@ -3,6 +3,12 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db import models
 from django.db.models.fields import reverse_related
 
+UNSUPPORTED = (GenericForeignKey,)
+TEXT_FIELDS = (models.CharField, models.TextField)
+NUM_FIELDS = (models.FloatField, models.IntegerField, models.DecimalField)
+DATE_FIELDS = (models.DateField, models.DateTimeField)
+SUPPORTED = tuple(list(TEXT_FIELDS) + list(NUM_FIELDS) + list(DATE_FIELDS))
+
 
 def map_filter_fields(resource, fields):
     filter_fields = {}
@@ -15,23 +21,23 @@ def map_filter_fields(resource, fields):
         ):
             continue
         f = resource.model_fields[name]
-        if isinstance(f, GenericForeignKey):
+        if isinstance(f, UNSUPPORTED) or not isinstance(f, SUPPORTED):
             continue
-        if isinstance(f, (models.CharField, models.TextField)):
+        if isinstance(f, TEXT_FIELDS):
             filter_fields[name] = ["exact", "icontains", "istartswith", "iendswith"]
             contains = name + "_icontains"
             filters[contains] = django_filters.CharFilter(
                 field_name=name, lookup_expr=contains
             )
 
-        if isinstance(f, (models.FloatField, models.IntegerField, models.DecimalField)):
+        if isinstance(f, NUM_FIELDS):
             filter_fields[name] = ["exact", "gt", "lt", "gte", "lte"]
             lt = name + "_less_than"
             filters[lt] = django_filters.NumberFilter(field_name=name, lookup_expr=lt)
             gt = name + "_greater_than"
             filters[gt] = django_filters.NumberFilter(field_name=name, lookup_expr=gt)
 
-        if isinstance(f, (models.DateField, models.DateTimeField)):
+        if isinstance(f, DATE_FIELDS):
             filter_fields[name] = ["exact", "gt", "lt", "gte", "lte", "range"]
             lt = name + "_less_than"
             filters[lt] = django_filters.DateTimeFilter(field_name=name, lookup_expr=lt)
@@ -48,7 +54,12 @@ def map_filter_fields(resource, fields):
 class EasyFilters(object):
     @classmethod
     def Assemble(cls, resource):
-        the_fields = [f for f in resource.fields if f in resource.model_fields_simple]
+        the_fields = [
+            f
+            for f in resource.fields
+            if f in resource.model_fields_simple
+            and isinstance(resource.model_fields_simple[f], SUPPORTED)
+        ]
 
         class GenericBaseFilters(django_filters.FilterSet):
             filter_fields = {}
