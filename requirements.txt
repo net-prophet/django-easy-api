@@ -5,5 +5,5 @@ django==2.2.9
 djangorestframework
 django-filter
 django-cors-headers
-rest_framework_simplejwt
+django-rest-framework-simplejwt
 graphene-django==2.8.0
