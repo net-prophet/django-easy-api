@@ -26,7 +26,7 @@ setup(
         'graphene-django==2.8.0',
         'django-filter',
         'django-cors-headers',
-        'django-rest-framework-simplejwt',
+        'djangorestframework-simplejwt',
     ],
     dependency_links=[
         'git+https://github.com/leewardbound/graphene-django@feature/disable-serializermutation-enums#egg=graphene-django-2.8.0'
