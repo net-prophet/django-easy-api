@@ -23,7 +23,7 @@ setup(
     install_requires = [
         'django>=2.0',
         'djangorestframework',
-        'graphene-django==2.8.0',
+        'graphene-django==2.9.1',
         'django-filter',
         'django-cors-headers',
         'djangorestframework-simplejwt',
