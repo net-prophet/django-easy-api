@@ -6,4 +6,4 @@ djangorestframework
 django-filter
 django-cors-headers
 djangorestframework-simplejwt
-graphene-django==2.8.0
+graphene-django==2.9.2
