@@ -29,7 +29,7 @@ def get_gql_type(fields, field):
     if field not in fields:
         return None
 
-    if field is "id":
+    if field == "id":
         return graphene.ID
     return convert_django_field(fields[field])
 

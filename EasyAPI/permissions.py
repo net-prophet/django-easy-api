@@ -76,7 +76,7 @@ def get_action_permission(resource, action, user):
         return permission, audit
 
     if isinstance(permission, str):
-        if permission is "*":
+        if permission == "*":
             audit.log("Permission is *, allowing...")
             return True, audit
 
@@ -107,7 +107,7 @@ def get_permitted_queryset(resource, action, user=None, qs=None):
         permission = permission(user, qs)
 
     if isinstance(permission, str):
-        if permission is "*":
+        if permission == "*":
             audit.log("Permission is *, allowing...")
             permission = True
         if permission in resource.relations:
