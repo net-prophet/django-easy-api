@@ -70,10 +70,10 @@ class Widget(models.Model):
     # + pass exactly one of either detail=True or many=True
     @APIAction(detail=True)
     @classmethod
-    def archive(cls, object, **data):
-        object.archived_at = django.utils.timezone.now()
-        object.save()
-        return object
+    def archive(cls, instance, **data):
+        instance.archived_at = django.utils.timezone.now()
+        instance.save()
+        return instance
 
     @APIAction(many=True, read_only=True)
     @classmethod
