@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status, exceptions
 from rest_framework.response import Response
 from rest_framework.filters import OrderingFilter
-from rest_framework.decorators import action
+from rest_framework.decorators import action as action_decorator
 
 from django_filters.rest_framework import DjangoFilterBackend
 
@@ -10,25 +10,28 @@ from EasyAPI.serializers import classproperty
 
 import django.db.models
 
-def create_mutation_view(resource, mutation, options):
+def create_action_view(resource, action, options):
     detail = options.get('detail', False)
     read_only = options.get('read_only', False)
-    
-    wrapper = action(detail=detail,
-            name=mutation,
+    wrapper = action_decorator(detail=detail,
+            name=action,
             methods=options.get('rest_methods', read_only and ['GET',] or ['POST',]),
-            url_path=options.get('rest_url_path', mutation),
-            url_name=options.get('rest_url_name', mutation.replace('_', '-'))
+            url_path=options.get('rest_url_path', action),
+            url_name=options.get('rest_url_name', action.replace('_', '-'))
     )
-    def mutation_view(view_self, request, **kwargs):
-        target = detail and view_self.get_object() or model
-        method = getattr(target, mutation)
+    def action_view(view_self, request, **kwargs):
+        # get the instance or class method
+        if detail:
+            target = view_self.get_object()
+        else:
+            target, audit = resource.get_permitted_queryset(action, user=request.user)
+        method = getattr(resource.model, action)
         return Response({
                     'result': resource.api.serialize(
-                        method(**request.data, **kwargs)).data
+                        method(target, **request.data, **kwargs))
                 })
-    mutation_view.__name__ = mutation
-    return wrapper(mutation_view)
+    action_view.__name__ = action
+    return wrapper(action_view)
 
 class EasyViewSet(viewsets.ModelViewSet):
     metadata_class = EasyAPIMetadata
@@ -42,8 +45,8 @@ class EasyViewSet(viewsets.ModelViewSet):
         actions = kwargs.pop("actions", {})
         extra_views = {}
 
-        for mutation, options in resource.mutations.items():
-            extra_views[mutation] = create_mutation_view(resource, mutation, options)
+        for action, options in resource.actions.items():
+            extra_views[action] = create_action_view(resource, action, options)
         
         klass = type(
             "%sViewSet" % model._meta.object_name,

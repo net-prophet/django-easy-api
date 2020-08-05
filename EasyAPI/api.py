@@ -122,14 +122,14 @@ class EasyAPI(object):
         if isinstance(data, Model):
             resource = self.get_resource_for_model(type(data))
 
-            return resource.serializer_class(data)
+            return resource.serializer_class(data).data
 
         if (
             isinstance(data, list) and isinstance(data[0], models.Model)
         ):
             resource = self.get_resource_for_model(data)
 
-            return resource.serializer_class(data, many=True)
+            return resource.serializer_class(data, many=True).data
         if (
             isinstance(data, QuerySet)
         ):

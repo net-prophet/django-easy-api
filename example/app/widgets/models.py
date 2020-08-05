@@ -2,7 +2,7 @@ import django.utils.timezone
 import graphene
 from django.db import models
 
-from EasyAPI.decorators import APIProperty, APIMutation, AddPermissionContext
+from EasyAPI.decorators import APIProperty, APIAction, AddPermissionContext
 
 from .options import COLORS, GENDERS, SHAPES, SIZES, STATES
 
@@ -57,6 +57,7 @@ class Widget(models.Model):
     shape = models.CharField(choices=SHAPES, max_length=30)
     cost = models.FloatField(default=0, blank=True)
 
+    # Properties are non-query calculations
     @APIProperty(graphene.Int)
     def age(self):
         return (django.utils.timezone.now() - self.created_at).total_seconds()
@@ -64,6 +65,23 @@ class Widget(models.Model):
     @APIProperty(graphene.String)
     def stub(self):
         return "%s-%s" % (self.store.name, self.name)
+
+    # Mutations can be on an object or a queryset --
+    # + pass exactly one of either detail=True or many=True
+    @APIAction(detail=True)
+    @classmethod
+    def archive(cls, object, **data):
+        object.archived_at = django.utils.timezone.now()
+        object.save()
+        return object
+
+    @APIAction(many=True, read_only=True)
+    @classmethod
+    def top_three(cls, qs, **data):
+        return qs.annotate(sold=models.Sum('items__purchase__sale_price')).order_by('sold')[:3]
+
+
+    
 
     def save(self, *args, **kwargs):
         if self.name == "":
@@ -74,19 +92,6 @@ class Widget(models.Model):
         shape_sum = sum([ord(x) for x in self.shape])
         self.cost = color_sum + size_sum + shape_sum
         super(Widget, self).save(*args, **kwargs)
-
-    @APIMutation(detail=True)
-    def archive(self, **data):
-        self.archived_at = django.utils.timezone.now()
-        self.save()
-        print('archive')
-        return self
-    
-    @APIMutation(detail=False, read_only=True)
-    @classmethod
-    def top_three(cls, **data):
-        print('top three')
-        return cls.objects.annotate(sold=models.Sum('items__purchase__sale_price')).order_by('sold')[:3]
 
     def __str__(self):
         return self.name

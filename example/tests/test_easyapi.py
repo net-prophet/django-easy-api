@@ -249,15 +249,15 @@ class APIMethodsTest(APITestCase):
 
         Store.objects.filter(widgets__pk=1).update(owner=self.suser)
         
-        url = lambda target: '/%s/widgets/1/archive/'%target
-        self.assertEqual(self.client.post(url('publicapi')).status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-        self.assertEqual(self.client.post(url('privateapi')).status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(self.client.post(url('complexapi')).status_code, status.HTTP_403_FORBIDDEN)
+        archive_url = lambda target: '/%s/widgets/1/archive/'%target
+        self.assertEqual(self.client.post(archive_url('publicapi')).status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(self.client.post(archive_url('privateapi')).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.post(archive_url('complexapi')).status_code, status.HTTP_403_FORBIDDEN)
         
         # login wrong user and get a 404
         self.client.login(username=TEST['username'],
                           password=TEST['password'])
-        self.assertEqual(self.client.post(url('privateapi')).status_code, status.HTTP_404_NOT_FOUND)          
+        self.assertEqual(self.client.post(archive_url('privateapi')).status_code, status.HTTP_404_NOT_FOUND)          
         self.client.logout()
 
         # Login correct user
@@ -265,8 +265,17 @@ class APIMethodsTest(APITestCase):
                           password=SUPER['password'])
         
         # Shouldn't be available via readonly API
-        self.assertEqual(self.client.post(url('publicapi')).status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(self.client.post(archive_url('publicapi')).status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-        archived = self.client.post(url('privateapi'))
+        archived = self.client.post(archive_url('privateapi'))
         self.assertEqual(archived.status_code, status.HTTP_200_OK)
         self.assertNotEqual(archived.data['result']['archived_at'], None)
+
+        top_3_url = lambda target: '/%s/widgets/top_three/'%target
+
+        # Shouldn't be available via readonly API
+        self.assertEqual(self.client.get(top_3_url('publicapi')).status_code, status.HTTP_200_OK)
+
+        top_3 = self.client.get(top_3_url('privateapi'))
+        self.assertEqual(archived.status_code, status.HTTP_200_OK)
+

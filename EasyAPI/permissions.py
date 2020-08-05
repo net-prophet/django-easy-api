@@ -1,6 +1,7 @@
 from rest_framework.permissions import BasePermission
 from django.db.models import QuerySet
 
+
 class AllowNone(BasePermission):
     def has_permission(self, request, view):
         return False
@@ -16,15 +17,13 @@ class AuditLog(list):
     def __str__(self):
         return "\n".join(line for line in self)
 
-def get_action_permission(resource, action, user, audit=None):
+
+def get_action_permission(resource, action, user):
     context = resource.get_permission_context()
-    log = ("get_action_permissions action=%s resource=%s user=%s api=%s"
-                % (action, resource.name, user, resource.api))
-    if audit:
-        audit.log(log)
-    else:
-        audit = AuditLog([log,])
-        
+    audit = AuditLog(
+        "get_action_permissions action=%s resource=%s user=%s api=%s"
+        % (action, resource.name, user, resource.api)
+    )
 
     contexts = getattr(resource.model, "_permissions_contexts", {})
     permission = None
@@ -64,8 +63,8 @@ def get_action_permission(resource, action, user, audit=None):
             permission = permission[action]
         elif (
             action in ["list", "retrieve", "metadata"]
-            or resource.mutations.get(action, {}).get('read_only')
-         ) and "read" in permission:
+            or resource.actions.get(action, {}).get("read_only")
+        ) and "read" in permission:
             audit.log("Matched readonly action", context, action)
             permission = permission["read"]
         elif "*" in permission:
@@ -129,8 +128,7 @@ def get_permitted_queryset(resource, action, user=None, qs=None):
                 related_field.remote_field.model
             )
             audit.log(
-                "Matched permission %s to relation %s"
-                % (permission, related_resource)
+                "Matched permission %s to relation %s" % (permission, related_resource)
             )
             sub_query, sub_audit = related_resource.get_permitted_queryset(
                 action, user=user
@@ -162,6 +160,7 @@ def get_permitted_queryset(resource, action, user=None, qs=None):
 
     audit.log("Unknown permission %s, returning nothing" % permission)
     return qs.none(), audit
+
 
 def get_permitted_object(resource, id, action, user=None, qs=None):
     qs, audit = resource.get_permitted_queryset(action, user=user, qs=qs)

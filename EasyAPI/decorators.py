@@ -6,12 +6,15 @@ def APIProperty(gql_type):
 
     return APIPropertyWrapper
 
-def APIMutation(detail, read_only=False):
-    def APIMutationWrapper(func):
-        setattr(func, "_APIMutation", {'detail': detail, 'read_only': read_only})
+def APIAction(detail=None, many=None, read_only=False):
+    if detail and many or (not detail and not many):
+        raise Exception("Must use either detail=true or many=true on %s"%func)
+    detail = not many
+    def APIActionWrapper(func):
+        setattr(func, "_APIAction", {'detail': detail, 'many': many, 'read_only': read_only})
         return func
 
-    return APIMutationWrapper
+    return APIActionWrapper
 
 
 def AddPermissionContext(context, permissions):

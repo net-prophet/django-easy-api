@@ -19,7 +19,12 @@ from rest_framework.routers import APIRootView, DefaultRouter
 from EasyAPI.filters import EasyFilters
 from EasyAPI.metadata import EasyAPIMetadata
 from EasyAPI.serializers import EasySerializable
-from EasyAPI.permissions import get_action_permission, get_permitted_queryset, get_permitted_object
+from EasyAPI.permissions import (
+    get_action_permission,
+    get_permitted_queryset,
+    get_permitted_object,
+)
+
 
 def get_gql_type(fields, field):
     from django.db import models
@@ -42,7 +47,7 @@ class ModelResource(object):
     serializer_class = None
     admin_class = None
     properties = None
-    mutations = {}
+    actions = {}
     fields = []
     read_only = []
     write_only = []
@@ -58,7 +63,7 @@ class ModelResource(object):
         read_only=None,  # Fields that are read-only
         write_only=None,  # Fields that are write-only
         properties=None,  # Dynamic views available as fields on a resource
-        mutations=None, # Extra actions for graphql and rest views
+        actions=None,  # Extra actions for graphql and rest views
         list_display=None,  # The favorite fields to display in a table
         permissions=None,
         inlines=None,
@@ -137,8 +142,8 @@ class ModelResource(object):
         self.gql_fields = {
             field: get_gql_type(self.model_fields, field)
             for field in self.fields + self.inlines + ["id",]
-            if self.api.graphql and
-            not isinstance(self.model_fields[field], GenericForeignKey)
+            if self.api.graphql
+            and not isinstance(self.model_fields[field], GenericForeignKey)
             and field not in self.write_only
             and field in self.model_fields
         }
@@ -158,16 +163,16 @@ class ModelResource(object):
             if getattr(getattr(self.model, name, None), "_APIProperty", False)
         }
 
-        self.mutations = (
-            mutations
-            or self.mutations
+        self.actions = (
+            actions
+            or self.actions
             or {
-                attr: getattr(value, "_APIMutation")
+                attr: getattr(value, "_APIAction")
                 for attr, value in self.model.__dict__.items()
-                if getattr(value, "_APIMutation", False)
+                if getattr(value, "_APIAction", False)
             }
         )
-
+        
     @classmethod
     def generate_for_model(cls, _model, **kwargs):
         class Meta(kwargs.get("Meta", object)):
@@ -205,16 +210,17 @@ class ModelResource(object):
 
     def get_permission_context(self):
         return self.api.permission_context
-    
 
-    def get_action_permission(self, action, user=None, audit=None):
-        return get_action_permission(self, action, user=user, audit=audit)
+    def get_action_permission(self, action, user=None):
+        return get_action_permission(self, action, user=user)
 
     def get_permitted_object(self, id, action, user=None, qs=None):
         return get_permitted_object(self, id, action, user=user, qs=qs)
 
     def get_permitted_queryset(self, action, user=None, qs=None):
-        return get_permitted_queryset(self, action, user=user, qs=qs or self.get_default_queryset())
+        return get_permitted_queryset(
+            self, action, user=user, qs=qs or self.get_default_queryset()
+        )
 
     def get_default_queryset(self):
         return self.model.objects.all()
@@ -289,4 +295,4 @@ class ModelResource(object):
         print()
         print("\tInlines:    ", self.inlines)
         print("\tProperties: ", self.properties)
-        print("\tMutations:  ", list(self.mutations.keys()))
+        print("\tActions:    ", list(self.actions.keys()))
