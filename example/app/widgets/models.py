@@ -2,7 +2,7 @@ import django.utils.timezone
 import graphene
 from django.db import models
 
-from EasyAPI.decorators import APIProperty, AddPermissionContext
+from EasyAPI.decorators import APIProperty, APIMutation, AddPermissionContext
 
 from .options import COLORS, GENDERS, SHAPES, SIZES, STATES
 
@@ -40,7 +40,6 @@ class Store(models.Model):
 def default_store_id():
     return Store.DEFAULT().id
 
-
 @AddPermissionContext("*", {"read": True})
 @AddPermissionContext("store_owner", {"*": "store"})
 class Widget(models.Model):
@@ -50,7 +49,8 @@ class Widget(models.Model):
         #default=default_store_id,
         related_name="widgets",
     )
-    created_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
     name = models.CharField(max_length=30, blank=True)
     color = models.CharField(choices=COLORS, max_length=30)
     size = models.CharField(choices=SIZES, max_length=30)
@@ -74,6 +74,19 @@ class Widget(models.Model):
         shape_sum = sum([ord(x) for x in self.shape])
         self.cost = color_sum + size_sum + shape_sum
         super(Widget, self).save(*args, **kwargs)
+
+    @APIMutation(detail=True)
+    def archive(self, **data):
+        self.archived_at = django.utils.timezone.now()
+        self.save()
+        print('archive')
+        return self
+    
+    @APIMutation(detail=False, read_only=True)
+    @classmethod
+    def top_three(cls, **data):
+        print('top three')
+        return cls.objects.annotate(sold=models.Sum('items__purchase__sale_price')).order_by('sold')[:3]
 
     def __str__(self):
         return self.name

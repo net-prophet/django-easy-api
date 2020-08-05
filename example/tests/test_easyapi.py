@@ -1,7 +1,7 @@
 import itertools
 from rest_framework import status
 from django.test import modify_settings
-from example.app.widgets.models import Widget
+from example.app.widgets.models import Widget, default_store_id, Store
 from example.app.widgets.options import COLORS, SIZES, SHAPES
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase, APIClient
@@ -24,7 +24,6 @@ SUPER = {
 }
 
 NUM_WIDGETS = 30
-@skip
 class APIMethodsTest(APITestCase):
     def setUp(self):
         self.client = APIClient()
@@ -38,7 +37,8 @@ class APIMethodsTest(APITestCase):
                 k=NUM_WIDGETS):
             Widget.objects.create(color=color[0],
                                   size=size[0],
-                                  shape=shape[0])
+                                  shape=shape[0],
+                                  store_id=default_store_id())
 
         # Let's create a test user and set our client
         self.user = User.objects.create(username=TEST['username'],
@@ -139,6 +139,7 @@ class APIMethodsTest(APITestCase):
     # Permissions to create and delete a widget are admin only
     def test_create_and_delete_widget(self):
         # So we can't create not logged in
+        store = Store.objects.create(owner=self.suser)
         widgets = self.client.get('/complexapi/widgets/')
         self.assertEqual(widgets.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -151,7 +152,8 @@ class APIMethodsTest(APITestCase):
         create = {'name': 'test_widget',
                   'color': 'blue',
                   'size': 'large',
-                  'shape': 'circle'
+                  'shape': 'circle',
+                  'store': store.id
                 }
         response = self.client.post('/complexapi/widgets/', data=create)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -205,7 +207,7 @@ class APIMethodsTest(APITestCase):
 
         # Then we randomly pick one to make sure the fields are present
         rand_index = random.randint(0, len(widgets.data) - 1)
-        widget_fields = ['name', 'color', 'size', 'shape', 'cost', 'pk', 'store', 'created_at']
+        widget_fields = ['name', 'color', 'size', 'shape', 'cost', 'pk', 'store', 'created_at', 'archived_at']
 
         self.assertEqual(len(widgets.data[rand_index]), len(widget_fields))
         [self.assertIn(field, widgets.data[rand_index])
@@ -241,3 +243,30 @@ class APIMethodsTest(APITestCase):
         self.assertEqual(changed_get.status_code, status.HTTP_200_OK)
 
         self.assertEqual(changed_get.data['name'], name['name'])
+
+    def test_widget_actions(self):
+        self.client.logout()
+
+        Store.objects.filter(widgets__pk=1).update(owner=self.suser)
+        
+        url = lambda target: '/%s/widgets/1/archive/'%target
+        self.assertEqual(self.client.post(url('publicapi')).status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(self.client.post(url('privateapi')).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.post(url('complexapi')).status_code, status.HTTP_403_FORBIDDEN)
+        
+        # login wrong user and get a 404
+        self.client.login(username=TEST['username'],
+                          password=TEST['password'])
+        self.assertEqual(self.client.post(url('privateapi')).status_code, status.HTTP_404_NOT_FOUND)          
+        self.client.logout()
+
+        # Login correct user
+        self.client.login(username=SUPER['username'],
+                          password=SUPER['password'])
+        
+        # Shouldn't be available via readonly API
+        self.assertEqual(self.client.post(url('publicapi')).status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        archived = self.client.post(url('privateapi'))
+        self.assertEqual(archived.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(archived.data['result']['archived_at'], None)

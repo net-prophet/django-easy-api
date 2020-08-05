@@ -6,6 +6,13 @@ def APIProperty(gql_type):
 
     return APIPropertyWrapper
 
+def APIMutation(detail, read_only=False):
+    def APIMutationWrapper(func):
+        setattr(func, "_APIMutation", {'detail': detail, 'read_only': read_only})
+        return func
+
+    return APIMutationWrapper
+
 
 def AddPermissionContext(context, permissions):
     def PermissionContextWrapper(model):

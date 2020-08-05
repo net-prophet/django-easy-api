@@ -8,8 +8,8 @@ from example.app.api import publicapi, privateapi, complexapi
 #    | Purchases: Read Store Owner
 
 publicapi.register(Widget, fields=['name', 'color', 'store'])
-privateapi.register(Widget, fields=['name', 'color', 'size', 'shape', 'cost', 'store'], dump_info=True)
-complexapi.register(Widget, list_display=['name', 'color', 'size', 'shape', 'cost', 'age'])
+privateapi.register(Widget, fields=['name', 'color', 'size', 'shape', 'cost', 'store', 'created_at', 'archived_at'], dump_info=True)
+complexapi.register(Widget, list_display=['name', 'color', 'size', 'shape', 'cost', 'age', 'created_at', 'archived_at'])
 
 publicapi.register(Purchase, fields=['items', 'sale_price'])
 privateapi.register(Purchase, fields=['items', 'sale_price', 'sale_date', 'profit', 'customer'], inlines=['items'])

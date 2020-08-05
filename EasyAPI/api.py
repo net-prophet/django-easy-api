@@ -6,6 +6,7 @@ from django.conf.urls import url
 from django.contrib import admin
 from django.contrib.auth.mixins import AccessMixin
 from django.db.models.base import ModelBase
+from django.db.models import QuerySet, Model
 from django.views.decorators.csrf import csrf_exempt
 from graphene_django.types import DjangoObjectType
 from graphene_django.views import GraphQLView
@@ -117,6 +118,27 @@ class EasyAPI(object):
     def get_resource_for_model(self, model):
         return self._registry.get(model, None)
 
+    def serialize(self, data):
+        if isinstance(data, Model):
+            resource = self.get_resource_for_model(type(data))
+
+            return resource.serializer_class(data)
+
+        if (
+            isinstance(data, list) and isinstance(data[0], models.Model)
+        ):
+            resource = self.get_resource_for_model(data)
+
+            return resource.serializer_class(data, many=True)
+        if (
+            isinstance(data, QuerySet)
+        ):
+            resource = self.get_resource_for_model(data.model)
+
+            return resource.serializer_class(data, many=True).data
+
+        return data
+
     def get_urls(self):
         from rest_framework.routers import APIRootView, DefaultRouter
         from EasyAPI.metadata import EasyAPIMetadata
@@ -153,6 +175,7 @@ class EasyAPI(object):
 
             if self.rest:
                 viewset = resource.generate_viewset()
+
                 router.register(
                     r"%s" % resource.label, viewset, "%s %s" % (name, resource.label),
                 )

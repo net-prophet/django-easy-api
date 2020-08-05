@@ -17,7 +17,7 @@ def run_tests():
     TestRunner = get_runner(settings)
     test_runner = TestRunner(verbosity=2, interactive=True)
 
-    failures = test_runner.run_tests(['example/tests/'])
+    failures = test_runner.run_tests(['example.tests'])
     sys.exit(failures)
 
 

@@ -16,14 +16,15 @@ class AuditLog(list):
     def __str__(self):
         return "\n".join(line for line in self)
 
-def get_action_permission(resource, action, user):
+def get_action_permission(resource, action, user, audit=None):
     context = resource.get_permission_context()
-    audit = AuditLog(
-        [
-            "get_action_permissions on %s:%s %s for %s"
-            % (context, action, resource.name, user)
-        ]
-    )
+    log = ("get_action_permissions action=%s resource=%s user=%s api=%s"
+                % (action, resource.name, user, resource.api))
+    if audit:
+        audit.log(log)
+    else:
+        audit = AuditLog([log,])
+        
 
     contexts = getattr(resource.model, "_permissions_contexts", {})
     permission = None
@@ -53,7 +54,7 @@ def get_action_permission(resource, action, user):
 
     if callable(contexts[context]):
         audit.log("Matched callable permission for context %s" % (context))
-        return permission, audit
+        return contexts[context], audit
 
     permission = contexts[context]
 
@@ -61,7 +62,10 @@ def get_action_permission(resource, action, user):
         if action in permission:
             audit.log("Matched context action", context, action)
             permission = permission[action]
-        elif action in ["list", "retrieve", "metadata"] and "read" in permission:
+        elif (
+            action in ["list", "retrieve", "metadata"]
+            or resource.mutations.get(action, {}).get('read_only')
+         ) and "read" in permission:
             audit.log("Matched readonly action", context, action)
             permission = permission["read"]
         elif "*" in permission:
@@ -79,12 +83,18 @@ def get_action_permission(resource, action, user):
         if permission == "*":
             audit.log("Permission is *, allowing...")
             return True, audit
+        if permission in resource.relations:
+            audit.log(
+                'Permission is a relation "%s", deferring to later...' % permission
+            )
+            return permission, audit
 
     if permission in [True, False, None]:
         audit.log("Permission is %s" % permission)
         return permission, audit
 
     audit.log("Unknown permission %s, returning it" % permission)
+
     return permission, audit
 
 
@@ -103,8 +113,8 @@ def get_permitted_queryset(resource, action, user=None, qs=None):
     audit.add_child(sub_audit)
 
     if callable(permission):
-        audit.log("Evaluating callable permission...")
-        permission = permission(user, qs)
+        audit.log("Evaluating callable child queryset...")
+        permission = permission(user=user, qs=qs)
 
     if isinstance(permission, str):
         if permission == "*":
@@ -157,4 +167,5 @@ def get_permitted_object(resource, id, action, user=None, qs=None):
     qs, audit = resource.get_permitted_queryset(action, user=user, qs=qs)
     result = qs.filter(id=id).first()
     audit.append("Filtering queryset for id=%s, got: %s" % (id, result))
+
     return result, audit

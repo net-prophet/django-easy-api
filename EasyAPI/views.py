@@ -1,12 +1,34 @@
 from rest_framework import viewsets, status, exceptions
 from rest_framework.response import Response
 from rest_framework.filters import OrderingFilter
+from rest_framework.decorators import action
 
 from django_filters.rest_framework import DjangoFilterBackend
 
 from EasyAPI.metadata import EasyAPIMetadata
 from EasyAPI.serializers import classproperty
 
+import django.db.models
+
+def create_mutation_view(resource, mutation, options):
+    detail = options.get('detail', False)
+    read_only = options.get('read_only', False)
+    
+    wrapper = action(detail=detail,
+            name=mutation,
+            methods=options.get('rest_methods', read_only and ['GET',] or ['POST',]),
+            url_path=options.get('rest_url_path', mutation),
+            url_name=options.get('rest_url_name', mutation.replace('_', '-'))
+    )
+    def mutation_view(view_self, request, **kwargs):
+        target = detail and view_self.get_object() or model
+        method = getattr(target, mutation)
+        return Response({
+                    'result': resource.api.serialize(
+                        method(**request.data, **kwargs)).data
+                })
+    mutation_view.__name__ = mutation
+    return wrapper(mutation_view)
 
 class EasyViewSet(viewsets.ModelViewSet):
     metadata_class = EasyAPIMetadata
@@ -18,8 +40,12 @@ class EasyViewSet(viewsets.ModelViewSet):
         model = resource.model
         filterset_class = kwargs.pop("filterset_class", resource.filterset_class)
         actions = kwargs.pop("actions", {})
+        extra_views = {}
 
-        return type(
+        for mutation, options in resource.mutations.items():
+            extra_views[mutation] = create_mutation_view(resource, mutation, options)
+        
+        klass = type(
             "%sViewSet" % model._meta.object_name,
             (cls,),
             {
@@ -28,15 +54,18 @@ class EasyViewSet(viewsets.ModelViewSet):
                 "filterset_class": filterset_class,
                 "actions": actions,
                 **kwargs,
+                **extra_views
             },
         )
+        
+
+
+        return klass
+        
 
     @classmethod
     def get_view_name(self):
         return self.model._meta.app_label
-
-    def get_queryset(self):
-        return self.model.objects.all()
 
     def get_serializer_class(self):
         return self.resource.serializer_class
@@ -132,11 +161,12 @@ class EasyViewSet(viewsets.ModelViewSet):
         return resp
 
     def check_permissions(self, request):
-        permitted = super(EasyViewSet, self).check_permissions(request)
+        parent_permitted = super(EasyViewSet, self).check_permissions(request)
         user = self.request.user.is_authenticated and self.request.user or None
-        resource_permissions, audit = self.resource.get_action_permission(self.action, user=user)
-        if resource_permissions:
-            return permitted
+        permission, audit = self.resource.get_action_permission(self.action, user=user)
+
+        if permission:
+            return parent_permitted
         else:
             raise exceptions.MethodNotAllowed(self.action)
 
@@ -144,6 +174,7 @@ class EasyViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user.is_authenticated and self.request.user or None
         qs, audit = self.resource.get_permitted_queryset(self.action, user=user)
+
         return qs
 
     def get_permissions(self):

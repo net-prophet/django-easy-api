@@ -1,22 +1,26 @@
 import datetime
 
 from django.test import TestCase
-from example.app.widgets.models import Widget, Customer, Purchase, PurchaseItem
+from example.app.widgets.models import Widget, Customer, Purchase, PurchaseItem, Store, User
 from unittest import skip
 
-@skip
+
 class WidgetTests(TestCase):
 
     def setUp(self):
+        user = User.objects.create(username='testuser')
+        store = Store.objects.create(owner=user)
         basic_obj = Widget(name='testwidget',
                            color='Black',
                            size='Small',
-                           shape='Rectangle')
+                           shape='Rectangle',
+                           store=store)
         basic_obj.save()
         dummy_obj = Widget(name='dummywidget',
                            color='Green',
                            size='Medium',
-                           shape='Ellipse')
+                           shape='Ellipse',
+                           store=store)
         dummy_obj.save()
 
     def test_all(self):
@@ -27,10 +31,12 @@ class WidgetTests(TestCase):
         self.assertEqual(obj.shape, 'Rectangle')
 
     def test_create_new(self):
+        store = Store.objects.first()
         obj = Widget.objects.create(name='otherwidget',
                                     color='Red',
                                     size='Large',
-                                    shape='Triangle')
+                                    shape='Triangle',
+                                    store=store)
         obj.save()
 
         other = Widget.objects.get(name='otherwidget')
@@ -41,23 +47,27 @@ class WidgetTests(TestCase):
 
         obj2 = Widget.objects.create(color='Red',
                                      size='Large',
-                                     shape='Triangle')
+                                     shape='Triangle',
+                                     store=store)
 
         self.assertEqual(obj2.name, 'Red.Large.Triangle')
 
-@skip
 class PurchaseTests(TestCase):
 
     def setUp(self):
+        user = User.objects.create(username='testuser')
+        store = Store.objects.create(owner=user)
         widg1 = Widget(name='testwidget',
                        color='Black',
                        size='Small',
-                       shape='Rectangle')
+                       shape='Rectangle',
+                       store=store)
         widg1.save()
         widg2 = Widget(name='dummywidget',
                        color='Green',
                        size='Medium',
-                       shape='Ellipse')
+                       shape='Ellipse',
+                       store=store)
         widg2.save()
         cust = Customer.objects.create(name='testcust',
                                        state='Florida',
