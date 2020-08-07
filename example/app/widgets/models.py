@@ -1,6 +1,7 @@
 import django.utils.timezone
 import graphene
 from django.db import models
+import django_filters
 
 from EasyAPI.decorators import APIProperty, APIAction, AddPermissionContext
 
@@ -80,8 +81,8 @@ class Widget(models.Model):
     def top_three(cls, qs, **data):
         return qs.annotate(sold=models.Sum('items__purchase__sale_price')).order_by('sold')[:3]
 
-
-    
+    unarchived = django_filters.BooleanFilter(field_name='archived_at', lookup_expr='isnull')
+    archived = django_filters.BooleanFilter(field_name='archived_at', lookup_expr='isnull', exclude=True)
 
     def save(self, *args, **kwargs):
         if self.name == "":

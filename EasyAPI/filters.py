@@ -48,8 +48,11 @@ def map_filter_fields(resource, fields):
             rng = name + "_range"
             filters[rng] = django_filters.DateRangeFilter(field_name=name)
 
+
     return filter_fields, filters
 
+def create_filter(resource, _filter, options):
+    return getattr(resource.model, options.get('name', _filter))
 
 class EasyFilters(object):
     @classmethod
@@ -76,6 +79,10 @@ class EasyFilters(object):
                 self.filter_fields = dict(**_fields)
                 self.local_filters = _filters
                 self.filters.update(_filters)
+
+                for _filter, options in resource.filters.items():
+                    self.filters[_filter] = create_filter(resource, _filter, options)
+        
 
             class Meta:
                 model = resource.model

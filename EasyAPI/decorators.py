@@ -6,12 +6,22 @@ def APIProperty(gql_type):
 
     return APIPropertyWrapper
 
-def APIAction(detail=None, many=None, read_only=False):
+def APIAction(detail=None, many=None, read_only=False, context="*", permission=None):
     if detail and many or (not detail and not many):
-        raise Exception("Must use either detail=true or many=true on %s"%func)
+        raise Exception("Must use either detail=true or many=true on %s" % func)
     detail = not many
+
     def APIActionWrapper(func):
-        setattr(func, "_APIAction", {'detail': detail, 'many': many, 'read_only': read_only})
+        setattr(
+            func,
+            "_APIAction",
+            {
+                "detail": detail,
+                "many": many,
+                "read_only": read_only,
+                "context": context,
+            },
+        )
         return func
 
     return APIActionWrapper

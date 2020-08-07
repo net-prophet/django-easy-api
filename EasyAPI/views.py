@@ -60,8 +60,6 @@ class EasyViewSet(viewsets.ModelViewSet):
                 **extra_views
             },
         )
-        
-
 
         return klass
         
@@ -182,5 +180,4 @@ class EasyViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         permission_classes = self.permissions + []
-
         return [permission() for permission in permission_classes]

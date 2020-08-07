@@ -15,7 +15,7 @@ from graphene_django.utils import get_model_fields
 from graphene_django.views import GraphQLView
 from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.routers import APIRootView, DefaultRouter
-
+import django_filters
 from EasyAPI.filters import EasyFilters
 from EasyAPI.metadata import EasyAPIMetadata
 from EasyAPI.serializers import EasySerializable
@@ -48,6 +48,7 @@ class ModelResource(object):
     admin_class = None
     properties = None
     actions = {}
+    filters = {}
     fields = []
     read_only = []
     write_only = []
@@ -64,6 +65,7 @@ class ModelResource(object):
         write_only=None,  # Fields that are write-only
         properties=None,  # Dynamic views available as fields on a resource
         actions=None,  # Extra actions for graphql and rest views
+        filters=None, # Extra filters for graphql and rest views
         list_display=None,  # The favorite fields to display in a table
         permissions=None,
         inlines=None,
@@ -170,6 +172,16 @@ class ModelResource(object):
                 attr: getattr(value, "_APIAction")
                 for attr, value in self.model.__dict__.items()
                 if getattr(value, "_APIAction", False)
+            }
+        )
+
+        self.filters = (
+            filters
+            or self.filters
+            or {
+                attr: getattr(value, "_APIFilter", {})
+                for attr, value in self.model.__dict__.items()
+                if isinstance(value, django_filters.Filter)
             }
         )
         
@@ -296,3 +308,4 @@ class ModelResource(object):
         print("\tInlines:    ", self.inlines)
         print("\tProperties: ", self.properties)
         print("\tActions:    ", list(self.actions.keys()))
+        print("\tFilters:    ", list(self.filters.keys()))
