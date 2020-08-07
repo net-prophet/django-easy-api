@@ -65,7 +65,7 @@ class ModelResource(object):
         write_only=None,  # Fields that are write-only
         properties=None,  # Dynamic views available as fields on a resource
         actions=None,  # Extra actions for graphql and rest views
-        filters=None, # Extra filters for graphql and rest views
+        filters=None,  # Extra filters for graphql and rest views
         list_display=None,  # The favorite fields to display in a table
         permissions=None,
         inlines=None,
@@ -150,6 +150,7 @@ class ModelResource(object):
             and field in self.model_fields
         }
 
+        # need to rewrite this with dir() like below
         self.properties = (
             properties
             or self.properties
@@ -169,8 +170,8 @@ class ModelResource(object):
             actions
             or self.actions
             or {
-                attr: getattr(value, "_APIAction")
-                for attr, value in self.model.__dict__.items()
+                attr: getattr(value, "_APIAction", {})
+                for attr, value in self.model_attributes.items()
                 if getattr(value, "_APIAction", False)
             }
         )
@@ -180,11 +181,20 @@ class ModelResource(object):
             or self.filters
             or {
                 attr: getattr(value, "_APIFilter", {})
-                for attr, value in self.model.__dict__.items()
+                for attr, value in self.model_attributes.items()
                 if isinstance(value, django_filters.Filter)
             }
         )
-        
+
+    @property
+    def model_attributes(self):
+        return dict(
+            [
+                (attr, self.model.__dict__.get(attr, getattr(self.model, attr)))
+                for attr in dir(self.model)
+            ]
+        )
+
     @classmethod
     def generate_for_model(cls, _model, **kwargs):
         class Meta(kwargs.get("Meta", object)):
