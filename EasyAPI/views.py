@@ -26,10 +26,12 @@ def create_action_view(resource, action, options):
         else:
             target, audit = resource.get_permitted_queryset(action, user=request.user)
         method = getattr(resource.model, action)
+        data = dict(**{k: v for k, v in request.GET.items()}, **request.data)
         return Response({
                     'result': resource.api.serialize(
-                        method(target, **request.data, **kwargs))
+                        method(target, **data, **kwargs))
                 })
+
     action_view.__name__ = action
     return wrapper(action_view)
 
