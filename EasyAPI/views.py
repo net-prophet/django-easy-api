@@ -95,9 +95,17 @@ class EasyViewSet(viewsets.ModelViewSet):
     def view_perform_update(cls, view, serializer):
         return cls.view_perform_save(view, serializer)
 
+    def add_default_data(self, data):
+        for name in set(self.resource.fields):
+            func = getattr(self.resource.model, 'get_default_%s'%name, None)
+            if func:
+                data[name] = func(self.resource, self.request, data)
+        return data
+
     def create(self, request, *args, **kwargs):
         data = self.view_create_data(self, request)
-        serializer = self.get_serializer(data=data)
+        with_defaults = self.add_default_data(data)
+        serializer = self.get_serializer(data=with_defaults)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
@@ -108,6 +116,8 @@ class EasyViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         data = self.view_update_data(self, request)
+        if not partial:
+            data = self.add_default_data(data)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=data, partial=partial)
         serializer.is_valid(raise_exception=True)

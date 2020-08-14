@@ -279,3 +279,18 @@ class APIMethodsTest(APITestCase):
         top_3 = self.client.get(top_3_url('privateapi'))
         self.assertEqual(archived.status_code, status.HTTP_200_OK)
 
+    # Users can create a store, user_id should be automatic
+    def test_create_store(self):
+        self.client.logout()
+        # Any user should be able to create a store
+        self.client.login(username=TEST['username'],
+                          password=TEST['password'])
+
+        create = {'name': 'my new store'}
+        response = self.client.post('/privateapi/stores/', data=create)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Let's retrieve it with our filters
+        filtered = self.client.get('/privateapi/stores/?title=my%20new%20store')
+        for k, v in create.items():
+            self.assertEqual(filtered.data[0][k], v)

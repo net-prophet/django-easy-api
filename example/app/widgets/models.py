@@ -26,7 +26,14 @@ class Store(models.Model):
     owner = models.ForeignKey(
         "widgets.User", on_delete=models.CASCADE, related_name="stores"
     )
-    setattr(owner, '_APIDefault', lambda resource, request: request.user)
+
+    @classmethod
+    def get_default_owner(cls, resource, request, data):
+        return request.user.id
+
+    setattr(get_default_owner, '_APIDefault', 'owner')
+
+
 
     @classmethod
     def DEFAULT(cls):
