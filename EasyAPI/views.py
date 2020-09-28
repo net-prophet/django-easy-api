@@ -26,7 +26,7 @@ def create_action_view(resource, action, options):
         else:
             target, audit = resource.get_permitted_queryset(action, user=request.user)
         method = getattr(resource.model, action)
-        data = dict(**{k: v for k, v in request.GET.items()}, **request.data)
+        data = dict(**{k: v for k, v in request.GET.items()}, **request.data, 'request': request)
         return Response({
                     'result': resource.api.serialize(
                         method(target, **data, **kwargs))
