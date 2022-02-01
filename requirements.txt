@@ -1,7 +1,7 @@
 tox
 markdown
 factory_boy
-django==2.2.9
+django==2.2.26
 djangorestframework
 django-filter
 django-cors-headers
